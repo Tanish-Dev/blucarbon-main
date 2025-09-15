@@ -1,7 +1,7 @@
 # blucarbon-main
 
 ## Project Overview
-SIH-25 is a web-based application designed to streamline and enhance project management and collaboration. The application is divided into two main parts:
+blucarbon is a web-based application designed to streamline and enhance project management and collaboration. The application is divided into two main parts:
 
 1. **Frontend**: Built with modern JavaScript frameworks and libraries, the frontend provides an intuitive and user-friendly interface for users to interact with the application.
 2. **Backend**: Powered by Python, the backend handles the server-side logic, data processing, and API endpoints.
