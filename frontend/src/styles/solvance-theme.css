@@ -1,0 +1,165 @@
+/* Solvance-inspired color scheme and styling for Blue Carbon Registry */
+
+:root {
+  /* Primary Colors - Inspired by Solvance's green energy theme */
+  --primary: #16a34a; /* Vibrant green primary */
+  --primary-foreground: #ffffff;
+  --primary-hover: #15803d;
+  
+  /* Secondary Colors */
+  --secondary: #f1f5f9; /* Light grey background */
+  --secondary-foreground: #334155;
+  
+  /* Background Colors */
+  --background: #ffffff;
+  --page-backdrop: #fafafa; /* Very light grey backdrop */
+  
+  /* Text Colors */
+  --text-primary: #0f172a; /* Deep slate */
+  --text-secondary: #475569; /* Medium slate */
+  --text-muted: #64748b; /* Light slate */
+  
+  /* Accent Colors - Energy/Environment themed */
+  --accent-blue: #0ea5e9; /* Sky blue for tech/data */
+  --accent-emerald: #10b981; /* Emerald for success/growth */
+  --accent-amber: #f59e0b; /* Amber for warnings/highlights */
+  --accent-orange: #ea580c; /* Orange for actions */
+  
+  /* Status Colors */
+  --status-draft: #e2e8f0; /* Light slate */
+  --status-draft-text: #475569;
+  --status-review: #fef3c7; /* Light amber */
+  --status-review-text: #92400e;
+  --status-monitoring: #d1fae5; /* Light emerald */
+  --status-monitoring-text: #065f46;
+  --status-issued: #dbeafe; /* Light blue */
+  --status-issued-text: #1e40af;
+  
+  /* Border Colors */
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
+  
+  /* Shadow */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  
+  /* Radii */
+  --radius-card: 1rem; /* 16px - Solvance uses rounded corners */
+  --radius-button: 0.75rem; /* 12px */
+  --radius-pill: 9999px;
+  
+  /* Typography - Solvance uses clean, modern fonts */
+  --font-heading: 'Inter', 'system-ui', sans-serif;
+  --font-body: 'Inter', 'system-ui', sans-serif;
+  
+  /* Spacing - Generous like Solvance */
+  --spacing-section: 5rem; /* 80px */
+  --spacing-card: 2rem; /* 32px */
+  --spacing-element: 1.5rem; /* 24px */
+}
+
+/* Override Tailwind colors with Solvance-inspired theme */
+.solvance-theme {
+  /* Update primary colors */
+  --primary: 142 76% 36%; /* Green primary in HSL */
+  
+  /* Update background colors */
+  --background: 0 0% 100%;
+  --card: 0 0% 100%;
+  --popover: 0 0% 100%;
+  
+  /* Update foreground colors */
+  --foreground: 222 84% 4.9%; /* Deep slate */
+  --card-foreground: 222 84% 4.9%;
+  --popover-foreground: 222 84% 4.9%;
+  
+  /* Update muted colors */
+  --muted: 210 40% 96%; /* Light slate background */
+  --muted-foreground: 215 16% 47%; /* Medium slate text */
+  
+  /* Update accent colors */
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 84% 4.9%;
+  
+  /* Update border colors */
+  --border: 214 32% 91%; /* Light slate border */
+  --input: 214 32% 91%;
+  
+  /* Update ring color for focus states */
+  --ring: 142 76% 36%; /* Green focus ring */
+}
+
+/* Apply the theme to the app */
+.App {
+  @apply solvance-theme;
+}
+
+/* Enhanced component styles inspired by Solvance */
+.solvance-card {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease-in-out;
+}
+
+.solvance-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+.solvance-button-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-button);
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.solvance-button-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.solvance-heading {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.solvance-body {
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.solvance-section {
+  padding-top: var(--spacing-section);
+  padding-bottom: var(--spacing-section);
+}
+
+/* Status chips with Solvance-inspired colors */
+.status-chip-draft {
+  background: var(--status-draft);
+  color: var(--status-draft-text);
+}
+
+.status-chip-review {
+  background: var(--status-review);
+  color: var(--status-review-text);
+}
+
+.status-chip-monitoring {
+  background: var(--status-monitoring);
+  color: var(--status-monitoring-text);
+}
+
+.status-chip-issued {
+  background: var(--status-issued);
+  color: var(--status-issued-text);
+}

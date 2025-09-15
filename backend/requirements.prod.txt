@@ -1,0 +1,21 @@
+# Production requirements (minimal for deployment)
+fastapi==0.110.1
+uvicorn[standard]==0.25.0
+python-dotenv>=1.0.1
+pymongo==4.5.0
+pydantic>=2.6.4
+motor==3.3.1
+requests>=2.31.0
+python-multipart>=0.0.9
+
+# Security (if used)
+pyjwt>=2.10.1
+passlib>=1.7.4
+cryptography>=42.0.8
+
+# Development dependencies (install separately)
+# pytest>=8.0.0
+# black>=24.1.1
+# isort>=5.13.2
+# flake8>=7.0.0
+# mypy>=1.8.0

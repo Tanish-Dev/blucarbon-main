@@ -1,0 +1,7 @@
+version: 2
+build:
+  os: ubuntu-22.04
+  commands:
+    - echo "Building backend..."
+    - pip install -r requirements.txt
+run: uvicorn server:app --host 0.0.0.0 --port $PORT
