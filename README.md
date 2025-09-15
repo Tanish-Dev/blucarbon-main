@@ -1,4 +1,4 @@
-# SIH-25
+# blucarbon-main
 
 ## Project Overview
 SIH-25 is a web-based application designed to streamline and enhance project management and collaboration. The application is divided into two main parts:
@@ -7,8 +7,13 @@ SIH-25 is a web-based application designed to streamline and enhance project man
 2. **Backend**: Powered by Python, the backend handles the server-side logic, data processing, and API endpoints.
 
 ---
+##  Features
 
-## Features
+- **Issue Blue Carbon Credits:** User-friendly interface to create, approve, and track carbon credits from project registration to issuance.
+- **Digital MRV:** Supports digital Measurement, Reporting, and Verification with seamless data input, reporting templates, and verification steps.
+- **FastAPI Backend:** Scalable and efficient REST API built with Python’s FastAPI for robust data management and model inference.
+- **Secure & Transparent:** Ensures compliance, traceability, and stakeholder trust using audit trails and clear reporting.
+
 ### Frontend
 - **Reusable Components**: A library of UI components such as buttons, cards, modals, and more.
 - **Responsive Design**: Ensures compatibility across devices of all sizes.
