@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Leaf, AlertCircle } from 'lucide-react';
-import BrandLogo from '../components/BrandLogo';
+import BrandLogoBig from '../components/BrandLogoBig';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ export default function Register() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
-            <BrandLogo className="text-4xl" />
+            <BrandLogoBig />
           </div>
           <CardTitle className="text-2xl">Create an account</CardTitle>
           <CardDescription>

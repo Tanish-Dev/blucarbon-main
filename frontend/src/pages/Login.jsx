@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Leaf, AlertCircle } from 'lucide-react';
-import BrandLogo from '../components/BrandLogo';
+import BrandLogoBig from '../components/BrandLogoBig';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -50,7 +50,7 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
-            <BrandLogo className="text-4xl" />
+            <BrandLogoBig />
           </div>
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
