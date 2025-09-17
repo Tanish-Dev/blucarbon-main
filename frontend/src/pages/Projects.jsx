@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import MetricTile from '../components/MetricTile';
 import Chip from '../components/Chip';
 import { Plus, Filter, Grid3X3, List, ExternalLink, Loader2 } from 'lucide-react';
@@ -14,20 +10,11 @@ import { toast } from '../components/ui/use-toast';
 
 export default function Projects() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('grid');
   const [filters, setFilters] = useState([]);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newProject, setNewProject] = useState({
-    title: '',
-    description: '',
-    methodology: '',
-    ecosystem_type: '',
-    location: { lat: '', lng: '', address: '' },
-    area_hectares: '',
-    vintage: new Date().getFullYear().toString()
-  });
 
   const filterOptions = {
     ecosystem: ['Mangrove', 'Seagrass', 'Salt Marsh'],
@@ -57,46 +44,8 @@ export default function Projects() {
     }
   };
 
-  const handleCreateProject = async (e) => {
-    e.preventDefault();
-    try {
-      const projectData = {
-        ...newProject,
-        area_hectares: parseFloat(newProject.area_hectares),
-        location: {
-          lat: parseFloat(newProject.location.lat) || 0,
-          lng: parseFloat(newProject.location.lng) || 0,
-          address: newProject.location.address
-        }
-      };
-
-      await projectsAPI.create(projectData);
-      toast({
-        title: "Success",
-        description: "Project created successfully!"
-      });
-      
-      setCreateDialogOpen(false);
-      setNewProject({
-        title: '',
-        description: '',
-        methodology: '',
-        ecosystem_type: '',
-        location: { lat: '', lng: '', address: '' },
-        area_hectares: '',
-        vintage: new Date().getFullYear().toString()
-      });
-      
-      // Refresh projects list
-      fetchProjects();
-    } catch (error) {
-      console.error('Failed to create project:', error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.detail || "Failed to create project. Please try again.",
-        variant: "destructive"
-      });
-    }
+  const handleCreateProject = () => {
+    navigate('/field-capture?mode=create');
   };
 
   const handleDeleteProject = async (projectId) => {
@@ -176,153 +125,13 @@ export default function Projects() {
           </p>
         </div>
         
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#0A6BFF] hover:bg-[#0A6BFF]/90 text-white px-6 py-3 rounded-full font-medium">
-              <Plus className="w-4 h-4 mr-2" />
-              Register Project
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <form onSubmit={handleCreateProject}>
-              <DialogHeader>
-                <DialogTitle>Create New Project</DialogTitle>
-                <DialogDescription>
-                  Register a new carbon credit project
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Project Title</Label>
-                    <Input
-                      id="title"
-                      value={newProject.title}
-                      onChange={(e) => setNewProject({...newProject, title: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vintage">Vintage Year</Label>
-                    <Input
-                      id="vintage"
-                      value={newProject.vintage}
-                      onChange={(e) => setNewProject({...newProject, vintage: e.target.value})}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={newProject.description}
-                    onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                    required
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Methodology</Label>
-                    <Select 
-                      value={newProject.methodology} 
-                      onValueChange={(value) => setNewProject({...newProject, methodology: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select methodology" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="VM0033">VM0033</SelectItem>
-                        <SelectItem value="VM0007">VM0007</SelectItem>
-                        <SelectItem value="CDM">CDM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Ecosystem Type</Label>
-                    <Select 
-                      value={newProject.ecosystem_type} 
-                      onValueChange={(value) => setNewProject({...newProject, ecosystem_type: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select ecosystem" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Mangrove">Mangrove</SelectItem>
-                        <SelectItem value="Seagrass">Seagrass</SelectItem>
-                        <SelectItem value="Salt Marsh">Salt Marsh</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="lat">Latitude</Label>
-                    <Input
-                      id="lat"
-                      type="number"
-                      step="any"
-                      value={newProject.location.lat}
-                      onChange={(e) => setNewProject({
-                        ...newProject, 
-                        location: {...newProject.location, lat: e.target.value}
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lng">Longitude</Label>
-                    <Input
-                      id="lng"
-                      type="number"
-                      step="any"
-                      value={newProject.location.lng}
-                      onChange={(e) => setNewProject({
-                        ...newProject, 
-                        location: {...newProject.location, lng: e.target.value}
-                      })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="area">Area (hectares)</Label>
-                    <Input
-                      id="area"
-                      type="number"
-                      step="any"
-                      value={newProject.area_hectares}
-                      onChange={(e) => setNewProject({...newProject, area_hectares: e.target.value})}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={newProject.location.address}
-                    onChange={(e) => setNewProject({
-                      ...newProject, 
-                      location: {...newProject.location, address: e.target.value}
-                    })}
-                    placeholder="Project location address"
-                  />
-                </div>
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Project</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          className="bg-[#0A6BFF] hover:bg-[#0A6BFF]/90 text-white px-6 py-3 rounded-full font-medium"
+          onClick={handleCreateProject}
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Register Project
+        </Button>
       </div>
 
       {/* Toolbar */}
@@ -484,7 +293,7 @@ export default function Projects() {
             {filters.length === 0 && (
               <Button 
                 className="bg-[#0A6BFF] hover:bg-[#0A6BFF]/90 text-white px-8 py-3 rounded-full font-medium"
-                onClick={() => setCreateDialogOpen(true)}
+                onClick={handleCreateProject}
               >
                 Register Project
               </Button>
