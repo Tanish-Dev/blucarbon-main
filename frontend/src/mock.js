@@ -110,7 +110,7 @@ export const mockValidators = [
 export const navItems = [
   { id: "dashboard", label: "Dashboard", path: "/" },
   { id: "projects", label: "Projects", path: "/projects" },
-  { id: "field-capture", label: "Field Capture", path: "/field-capture" },
+  { id: "field-capture", label: "Field Capture", path: "/create-project" },
   { id: "dmrv-studio", label: "dMRV Studio", path: "/dmrv-studio" },
   { id: "credits", label: "Credits", path: "/credits" },
   { id: "marketplace", label: "Marketplace", path: "/marketplace" },

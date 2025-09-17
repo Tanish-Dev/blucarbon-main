@@ -45,7 +45,7 @@ export default function Projects() {
   };
 
   const handleCreateProject = () => {
-    navigate('/field-capture?mode=create');
+    navigate('/create-project');
   };
 
   const handleDeleteProject = async (projectId) => {

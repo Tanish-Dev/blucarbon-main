@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -42,7 +42,8 @@ const PROJECT_STEPS = [
 export default function FieldCapture() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isProjectMode = searchParams.get('mode') === 'create';
+  const location = useLocation();
+  const isProjectMode = searchParams.get('mode') === 'create' || location.pathname === '/create-project';
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isOffline, setIsOffline] = useState(false);

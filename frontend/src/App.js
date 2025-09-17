@@ -38,6 +38,7 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/field-capture" element={<FieldCapture />} />
+              <Route path="/create-project" element={<FieldCapture />} />
               <Route path="/dmrv-studio" element={<DMRVStudio />} />
               <Route path="/credits" element={<Credits />} />
               <Route path="/marketplace" element={<Marketplace />} />
