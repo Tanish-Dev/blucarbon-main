@@ -99,6 +99,19 @@ export default function Projects() {
     }
   };
 
+  const handleDeleteProject = async (projectId) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      try {
+        await projectsAPI.delete(projectId);
+        setProjects((prevProjects) => prevProjects.filter((project) => project.id !== projectId));
+        toast({ title: 'Project deleted successfully', status: 'success' });
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+        toast({ title: 'Failed to delete project', status: 'error' });
+      }
+    }
+  };
+
   const addFilter = (category, value) => {
     const newFilter = { category, value, id: `${category}-${value}` };
     if (!filters.find(f => f.id === newFilter.id)) {
@@ -428,15 +441,24 @@ export default function Projects() {
                 </div>
 
                 {/* Action */}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-between border-[#E5EAF0] hover:border-[#D9E2EC]"
-                  onClick={() => console.log('View project:', project.id)}
-                >
-                  View Project
-                  <ExternalLink className="w-3 h-3" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-between border-[#E5EAF0] hover:border-[#D9E2EC]"
+                    onClick={() => console.log('View project:', project.id)}
+                  >
+                    View Project
+                    <ExternalLink className="w-3 h-3" />
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => handleDeleteProject(project.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

@@ -2,6 +2,14 @@ import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function MetricTile({ metric, compact = false }) {
+  if (!metric) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition-colors shadow-sm">
+        <div className="text-center text-slate-500">No data available</div>
+      </div>
+    );
+  }
+
   const { value, unit, label, trend } = metric;
 
   const formatValue = (val) => {

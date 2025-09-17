@@ -37,7 +37,11 @@ export default function FeatureProjectCard({ project }) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {metricKeys.map((key) => (
-                <MetricTile key={key} metric={metrics[key]} compact />
+                metrics && metrics[key] ? (
+                  <MetricTile key={key} metric={metrics[key]} compact />
+                ) : (
+                  <div key={key} className="text-center text-slate-500">No data available</div>
+                )
               ))}
             </div>
           </div>
