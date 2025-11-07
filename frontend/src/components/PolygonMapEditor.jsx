@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '../styles/map.css';
 import { Button } from './ui/button';
-import { Trash2, Undo, Save, MapPin, Satellite, Map as MapIcon } from 'lucide-react';
+import { Trash2, Undo, Save, MapPin, Satellite, Map as MapIcon, Search, Loader2 } from 'lucide-react';
 
 // Import marker images
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -68,6 +68,9 @@ export default function PolygonMapEditor({
   const [center, setCenter] = useState(initialCenter);
   const [zoom, setZoom] = useState(initialZoom);
   const mapRef = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   // Calculate area of polygon in hectares using Shoelace formula
   const calculateArea = (points) => {
@@ -140,6 +143,38 @@ export default function PolygonMapEditor({
     }
   };
 
+  const handleSearchLocation = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setSearchError('');
+
+    try {
+      // Using Nominatim (OpenStreetMap) geocoding service
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
+      );
+      
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        const newCenter = [parseFloat(result.lat), parseFloat(result.lon)];
+        setCenter(newCenter);
+        setZoom(15);
+        setSearchError('');
+      } else {
+        setSearchError('Location not found. Try a different search term.');
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchError('Failed to search location. Please try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const area = calculateArea(vertices);
 
   // Google Satellite tiles URL (via third-party proxy)
@@ -150,6 +185,42 @@ export default function PolygonMapEditor({
 
   return (
     <div className="space-y-4">
+      {/* Location Search Bar */}
+      <form onSubmit={handleSearchLocation} className="w-full">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+            <Search className="w-5 h-5 text-[#65728A]" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search location (e.g., 'Godavari Delta, India' or 'Mumbai')"
+            className="w-full h-14 pl-12 pr-24 text-base border-2 border-[#E5EAF0] rounded-xl focus:border-[#0A6BFF] focus:ring-2 focus:ring-[#0A6BFF]/20 focus:outline-none transition-all"
+            disabled={isSearching}
+          />
+          <Button
+            type="submit"
+            disabled={isSearching || !searchQuery.trim()}
+            className="absolute right-2 top-2 h-10 px-4 bg-[#0A6BFF] hover:bg-[#0A6BFF]/90"
+          >
+            {isSearching ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              'Search'
+            )}
+          </Button>
+        </div>
+        {searchError && (
+          <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+            <span>⚠️</span> {searchError}
+          </p>
+        )}
+      </form>
+
       {/* Controls */}
       <div className="flex flex-wrap gap-3 items-center justify-between bg-[#F7F8FA] p-4 rounded-xl border border-[#E5EAF0]">
         <div className="flex flex-wrap gap-2">
