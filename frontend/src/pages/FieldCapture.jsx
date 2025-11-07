@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react';
 import Chip from '../components/Chip';
+import PolygonMapEditor from '../components/PolygonMapEditor';
 
 const FIELD_STEPS = [
   { id: 1, label: 'GPS', icon: MapPin },
@@ -59,6 +60,8 @@ export default function FieldCapture() {
     },
     // GPS and location data
     gps: { latitude: '', longitude: '', accuracy: 0, address: '' },
+    // Polygon vertices for project area
+    polygonVertices: [],
     // Field/plot details
     details: { 
       plotId: '', 
@@ -144,7 +147,7 @@ export default function FieldCapture() {
           location: {
             lat: parseFloat(formData.gps.latitude) || 0,
             lng: parseFloat(formData.gps.longitude) || 0,
-            address: formData.gps.address
+            polygon_vertices: formData.polygonVertices // Include polygon vertices
           },
           // Include field data if provided
           field_data: {
@@ -462,58 +465,66 @@ export default function FieldCapture() {
                 <div className="space-y-6">
                   <h2 className="text-2xl font-semibold text-[#0A0F1C] mb-6">Project Location</h2>
                   
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="latitude" className="text-[#0A0F1C] font-medium">Latitude</Label>
-                      <Input
-                        id="latitude"
-                        type="number"
-                        step="any"
-                        placeholder="16.7644"
-                        value={formData.gps.latitude}
-                        onChange={(e) => updateFormData('gps', { latitude: e.target.value })}
-                        className="h-14 text-lg border-[#E5EAF0] rounded-xl focus:border-[#0A6BFF] focus:ring-[#0A6BFF]"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="longitude" className="text-[#0A0F1C] font-medium">Longitude</Label>
-                      <Input
-                        id="longitude"
-                        type="number"
-                        step="any"
-                        placeholder="81.6375"
-                        value={formData.gps.longitude}
-                        onChange={(e) => updateFormData('gps', { longitude: e.target.value })}
-                        className="h-14 text-lg border-[#E5EAF0] rounded-xl focus:border-[#0A6BFF] focus:ring-[#0A6BFF]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="address" className="text-[#0A0F1C] font-medium">Project Address</Label>
-                    <Input
-                      id="address"
-                      placeholder="e.g., Godavari Delta, Andhra Pradesh, India"
-                      value={formData.gps.address}
-                      onChange={(e) => updateFormData('gps', { address: e.target.value })}
-                      className="h-14 text-lg border-[#E5EAF0] rounded-xl focus:border-[#0A6BFF] focus:ring-[#0A6BFF]"
-                    />
-                  </div>
-
+                  {/* Interactive Polygon Map Editor */}
                   <div className="space-y-4">
-                    <Label className="text-[#0A0F1C] font-medium">GPS Accuracy: {formData.gps.accuracy}m</Label>
-                    <Slider
-                      value={[formData.gps.accuracy]}
-                      onValueChange={(value) => updateFormData('gps', { accuracy: value[0] })}
-                      max={50}
-                      min={0}
-                      step={1}
-                      className="w-full"
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <h3 className="font-semibold text-[#0A0F1C] mb-2 flex items-center gap-2">
+                        <MapPin className="w-5 h-5 text-[#0A6BFF]" />
+                        Plot Your Project Area
+                      </h3>
+                      <p className="text-sm text-[#65728A]">
+                        Use the interactive map below to mark the boundaries of your project area. 
+                        Click "Start Drawing" and then click on the map to add vertices. 
+                        The area will be automatically calculated.
+                      </p>
+                    </div>
+
+                    <PolygonMapEditor
+                      vertices={formData.polygonVertices}
+                      onVerticesChange={(vertices) => {
+                        setFormData(prev => ({ ...prev, polygonVertices: vertices }));
+                        
+                        // Auto-calculate center point and update lat/lng
+                        if (vertices.length > 0) {
+                          const centerLat = vertices.reduce((sum, v) => sum + v[0], 0) / vertices.length;
+                          const centerLng = vertices.reduce((sum, v) => sum + v[1], 0) / vertices.length;
+                          updateFormData('gps', { 
+                            latitude: centerLat.toFixed(6), 
+                            longitude: centerLng.toFixed(6) 
+                          });
+                        }
+                      }}
+                      initialCenter={[20.5937, 78.9629]}
+                      initialZoom={5}
+                      height="500px"
                     />
-                    <div className="flex justify-between text-sm text-[#65728A]">
-                      <span>0m (Excellent)</span>
-                      <span>50m (Poor)</span>
+                  </div>
+
+                  {/* Center Point Coordinates (Read-only, auto-calculated) */}
+                  <div className="bg-[#F7F8FA] rounded-xl p-4 border border-[#E5EAF0]">
+                    <h4 className="font-semibold text-[#0A0F1C] mb-3">Center Point Coordinates</h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-[#0A0F1C] font-medium">Latitude (Auto-calculated)</Label>
+                        <Input
+                          type="text"
+                          value={formData.gps.latitude}
+                          readOnly
+                          className="h-12 text-lg border-[#E5EAF0] rounded-xl bg-white"
+                          placeholder="Plot area on map"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-[#0A0F1C] font-medium">Longitude (Auto-calculated)</Label>
+                        <Input
+                          type="text"
+                          value={formData.gps.longitude}
+                          readOnly
+                          className="h-12 text-lg border-[#E5EAF0] rounded-xl bg-white"
+                          placeholder="Plot area on map"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -839,7 +850,7 @@ export default function FieldCapture() {
                   <div className="grid md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-[#65728A]">
-                        {isProjectMode ? 'GPS Coordinates:' : 'Plot ID:'}
+                        {isProjectMode ? 'GPS Coordinates (Center):' : 'Plot ID:'}
                       </span>
                       <span className="ml-2 text-[#0A0F1C] font-medium">
                         {isProjectMode 
@@ -850,10 +861,10 @@ export default function FieldCapture() {
                         }
                       </span>
                     </div>
-                    {isProjectMode && (
+                    {isProjectMode && formData.polygonVertices.length > 0 && (
                       <div>
-                        <span className="text-[#65728A]">Address:</span>
-                        <span className="ml-2 text-[#0A0F1C] font-medium">{formData.gps.address || 'Not specified'}</span>
+                        <span className="text-[#65728A]">Plotted Vertices:</span>
+                        <span className="ml-2 text-[#0A0F1C] font-medium">{formData.polygonVertices.length} points</span>
                       </div>
                     )}
                     {!isProjectMode && (
@@ -877,10 +888,6 @@ export default function FieldCapture() {
                     <div>
                       <span className="text-[#65728A]">Soil Type:</span>
                       <span className="ml-2 text-[#0A0F1C] font-medium">{formData.details.soilType || 'Not specified'}</span>
-                    </div>
-                    <div>
-                      <span className="text-[#65728A]">GPS Accuracy:</span>
-                      <span className="ml-2 text-[#0A0F1C] font-medium">{formData.gps.accuracy}m</span>
                     </div>
                   </div>
                   {formData.details.notes && (

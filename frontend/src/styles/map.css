@@ -1,6 +1,7 @@
 /* Leaflet map container fixes */
 .leaflet-container {
   font-family: inherit;
+  z-index: 0;
 }
 
 /* Custom popup styles */
