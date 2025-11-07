@@ -195,6 +195,9 @@ export default function PolygonMapEditor({
   // Google Satellite tiles URL (via third-party proxy)
   const satelliteTileUrl = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
   
+  // Google Hybrid (satellite + labels) overlay
+  const labelsOnlyTileUrl = 'https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}';
+  
   // OpenStreetMap tiles URL
   const streetsTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -397,6 +400,7 @@ export default function PolygonMapEditor({
         >
           <MapViewController center={center} zoom={zoom} animate={shouldAnimate} />
           
+          {/* Base layer - Satellite or Street */}
           <TileLayer
             attribution={
               mapType === 'satellite' 
@@ -405,6 +409,14 @@ export default function PolygonMapEditor({
             }
             url={mapType === 'satellite' ? satelliteTileUrl : streetsTileUrl}
           />
+          
+          {/* Labels overlay for satellite view */}
+          {mapType === 'satellite' && (
+            <TileLayer
+              url={labelsOnlyTileUrl}
+              attribution='&copy; Google'
+            />
+          )}
           
           <MapClickHandler onAddVertex={handleAddVertex} isDrawing={isDrawing} />
           
