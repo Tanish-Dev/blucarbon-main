@@ -236,102 +236,151 @@ export default function PolygonMapEditor({
         )}
       </form>
 
-      {/* Controls */}
-      <div className="flex flex-wrap gap-3 items-center justify-between bg-[#F7F8FA] p-4 rounded-xl border border-[#E5EAF0]">
-        <div className="flex flex-wrap gap-2">
-          {!isDrawing ? (
-            <Button 
-              onClick={handleStartDrawing}
-              className="bg-[#0A6BFF] hover:bg-[#0A6BFF]/90"
-            >
-              <MapPin className="w-4 h-4 mr-2" />
-              Start Drawing
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleFinishDrawing}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Finish Drawing
-            </Button>
-          )}
-          
-          <Button 
-            variant="outline"
-            onClick={handleRemoveLastVertex}
-            disabled={vertices.length === 0}
-            className="border-[#E5EAF0]"
-          >
-            <Undo className="w-4 h-4 mr-2" />
-            Undo
-          </Button>
-          
-          <Button 
-            variant="outline"
-            onClick={handleClearAll}
-            disabled={vertices.length === 0}
-            className="border-[#E5EAF0] hover:border-red-300 hover:bg-red-50 hover:text-red-600"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Clear All
-          </Button>
+      {/* Controls - Redesigned */}
+      <div className="bg-white border-2 border-[#E5EAF0] rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+          {/* Left: Drawing Controls */}
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 p-1 bg-[#F7F8FA] rounded-lg">
+              {!isDrawing ? (
+                <Button 
+                  onClick={handleStartDrawing}
+                  className="bg-[#0A6BFF] hover:bg-[#0A6BFF]/90 shadow-sm h-10"
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Start Drawing
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleFinishDrawing}
+                  className="bg-green-600 hover:bg-green-700 shadow-sm h-10"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Finish Drawing
+                </Button>
+              )}
+            </div>
 
-          <Button 
-            variant="outline"
-            onClick={handleUseCurrentLocation}
-            className="border-[#E5EAF0]"
-          >
-            <MapPin className="w-4 h-4 mr-2" />
-            My Location
-          </Button>
-        </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                size="icon"
+                onClick={handleRemoveLastVertex}
+                disabled={vertices.length === 0}
+                className="h-10 w-10 border-2 border-[#E5EAF0] hover:border-[#0A6BFF] hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Undo last vertex"
+              >
+                <Undo className="w-4 h-4" />
+              </Button>
+              
+              <Button 
+                variant="outline"
+                size="icon"
+                onClick={handleClearAll}
+                disabled={vertices.length === 0}
+                className="h-10 w-10 border-2 border-[#E5EAF0] hover:border-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Clear all vertices"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
 
-        <div className="flex gap-2">
-          <Button 
-            variant={mapType === 'satellite' ? 'default' : 'outline'}
-            onClick={() => setMapType('satellite')}
-            className={mapType === 'satellite' ? 'bg-[#0A6BFF]' : 'border-[#E5EAF0]'}
-          >
-            <Satellite className="w-4 h-4 mr-2" />
-            Satellite
-          </Button>
-          
-          <Button 
-            variant={mapType === 'streets' ? 'default' : 'outline'}
-            onClick={() => setMapType('streets')}
-            className={mapType === 'streets' ? 'bg-[#0A6BFF]' : 'border-[#E5EAF0]'}
-          >
-            <MapIcon className="w-4 h-4 mr-2" />
-            Streets
-          </Button>
+              <div className="h-6 w-px bg-[#E5EAF0] mx-1"></div>
+
+              <Button 
+                variant="outline"
+                onClick={handleUseCurrentLocation}
+                className="h-10 border-2 border-[#E5EAF0] hover:border-[#0A6BFF] hover:bg-blue-50"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                My Location
+              </Button>
+            </div>
+          </div>
+
+          {/* Right: Map View Toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-[#65728A] hidden md:block">View:</span>
+            <div className="flex items-center gap-1 p-1 bg-[#F7F8FA] rounded-lg border border-[#E5EAF0]">
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={() => setMapType('satellite')}
+                className={`h-9 px-4 transition-all ${
+                  mapType === 'satellite' 
+                    ? 'bg-[#0A6BFF] text-white hover:bg-[#0A6BFF]/90 shadow-sm' 
+                    : 'text-[#65728A] hover:text-[#0A0F1C] hover:bg-white'
+                }`}
+              >
+                <Satellite className="w-4 h-4 mr-2" />
+                Satellite
+              </Button>
+              
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={() => setMapType('streets')}
+                className={`h-9 px-4 transition-all ${
+                  mapType === 'streets' 
+                    ? 'bg-[#0A6BFF] text-white hover:bg-[#0A6BFF]/90 shadow-sm' 
+                    : 'text-[#65728A] hover:text-[#0A0F1C] hover:bg-white'
+                }`}
+              >
+                <MapIcon className="w-4 h-4 mr-2" />
+                Streets
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Info Bar */}
-      <div className="flex flex-wrap gap-4 items-center bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#0A0F1C]">Vertices:</span>
-          <span className="text-sm text-[#65728A]">{vertices.length}</span>
-        </div>
-        
-        {vertices.length >= 3 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#0A0F1C]">Area:</span>
-            <span className="text-sm text-[#65728A]">{area} hectares</span>
+      {/* Info Bar - Redesigned */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          {/* Status Indicators */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-blue-200">
+              <div className="w-2 h-2 rounded-full bg-[#0A6BFF]"></div>
+              <span className="text-sm font-semibold text-[#0A0F1C]">Vertices:</span>
+              <span className="text-sm font-bold text-[#0A6BFF]">{vertices.length}</span>
+            </div>
+            
+            {vertices.length >= 3 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-green-200">
+                <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                <span className="text-sm font-semibold text-[#0A0F1C]">Area:</span>
+                <span className="text-sm font-bold text-green-700">{area} ha</span>
+              </div>
+            )}
           </div>
-        )}
-        
-        <div className="text-sm text-[#65728A] ml-auto">
-          {isDrawing ? (
-            <span className="text-green-600 font-medium">
-              Click on map to add vertices • Click "Finish Drawing" when done
-            </span>
-          ) : (
-            <span>
-              Click "Start Drawing" to plot your area
-            </span>
-          )}
+          
+          {/* Instructions */}
+          <div className="flex-1 md:ml-auto">
+            {isDrawing ? (
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-green-600 animate-pulse"></div>
+                <span className="font-medium text-green-700">
+                  Drawing Mode Active
+                </span>
+                <span className="text-[#65728A] hidden md:inline">
+                  • Click on map to add vertices
+                </span>
+              </div>
+            ) : (
+              <div className="text-sm text-[#65728A]">
+                {vertices.length === 0 ? (
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Click "Start Drawing" to plot your project area
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Save className="w-4 h-4 text-green-600" />
+                    Area plotted successfully • You can continue editing or proceed to next step
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -396,17 +445,41 @@ export default function PolygonMapEditor({
         </MapContainer>
       </div>
 
-      {/* Vertex List */}
+      {/* Vertex List - Redesigned */}
       {vertices.length > 0 && (
-        <div className="bg-[#F7F8FA] rounded-xl p-4 border border-[#E5EAF0]">
-          <h4 className="font-semibold text-[#0A0F1C] mb-3">Plotted Vertices</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+        <div className="bg-white border-2 border-[#E5EAF0] rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-semibold text-[#0A0F1C] flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#0A6BFF]"></div>
+              Plotted Vertices
+              <span className="text-xs font-normal text-[#65728A] ml-1">
+                ({vertices.length} points)
+              </span>
+            </h4>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearAll}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              Clear All
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
             {vertices.map((vertex, index) => (
-              <div key={index} className="text-sm bg-white p-2 rounded border border-[#E5EAF0]">
-                <span className="font-medium text-[#0A6BFF]">Point {index + 1}:</span>{' '}
-                <span className="text-[#65728A]">
-                  {vertex[0].toFixed(6)}, {vertex[1].toFixed(6)}
-                </span>
+              <div 
+                key={index} 
+                className="group relative flex items-center gap-2 text-sm bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border border-blue-200 hover:border-blue-300 hover:shadow-sm transition-all"
+              >
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-[#0A6BFF] text-white text-xs font-bold flex items-center justify-center">
+                  {index + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-[#65728A] truncate font-mono">
+                    {vertex[0].toFixed(6)}, {vertex[1].toFixed(6)}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
