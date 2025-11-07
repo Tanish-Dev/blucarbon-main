@@ -43,15 +43,23 @@ function MapClickHandler({ onAddVertex, isDrawing }) {
   return null;
 }
 
-// Component to update map view when center/zoom changes
-function MapViewController({ center, zoom }) {
+// Component to update map view when center/zoom changes with smooth animation
+function MapViewController({ center, zoom, animate = true }) {
   const map = useMap();
   
   useEffect(() => {
     if (center && center[0] && center[1]) {
-      map.setView(center, zoom);
+      if (animate) {
+        // Smooth animated transition
+        map.flyTo(center, zoom, {
+          duration: 1.5, // Animation duration in seconds
+          easeLinearity: 0.25
+        });
+      } else {
+        map.setView(center, zoom);
+      }
     }
-  }, [center, zoom, map]);
+  }, [center, zoom, map, animate]);
   
   return null;
 }
@@ -71,6 +79,7 @@ export default function PolygonMapEditor({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [shouldAnimate, setShouldAnimate] = useState(false);
 
   // Calculate area of polygon in hectares using Shoelace formula
   const calculateArea = (points) => {
@@ -130,8 +139,11 @@ export default function PolygonMapEditor({
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const newCenter = [position.coords.latitude, position.coords.longitude];
+          setShouldAnimate(true); // Enable animation for current location
           setCenter(newCenter);
           setZoom(15);
+          // Reset animation flag after a delay
+          setTimeout(() => setShouldAnimate(false), 2000);
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -161,9 +173,12 @@ export default function PolygonMapEditor({
       if (data && data.length > 0) {
         const result = data[0];
         const newCenter = [parseFloat(result.lat), parseFloat(result.lon)];
+        setShouldAnimate(true); // Enable animation for search
         setCenter(newCenter);
         setZoom(15);
         setSearchError('');
+        // Reset animation flag after a delay
+        setTimeout(() => setShouldAnimate(false), 2000);
       } else {
         setSearchError('Location not found. Try a different search term.');
       }
@@ -331,7 +346,7 @@ export default function PolygonMapEditor({
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
         >
-          <MapViewController center={center} zoom={zoom} />
+          <MapViewController center={center} zoom={zoom} animate={shouldAnimate} />
           
           <TileLayer
             attribution={
