@@ -123,6 +123,31 @@ export const projectsAPI = {
   registerOnBlockchain: async (projectId) => {
     const response = await api.post(`/projects/${projectId}/register-blockchain`);
     return response.data;
+  },
+
+  // Upload images directly to project
+  uploadProjectImages: async (projectId, formData) => {
+    const response = await api.post(`/projects/${projectId}/upload-images`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Field data methods (keep for backward compatibility)
+  createFieldData: async (fieldData) => {
+    const response = await api.post('/field-data', fieldData);
+    return response.data;
+  },
+
+  uploadFieldImages: async (fieldDataId, formData) => {
+    const response = await api.post(`/field-data/${fieldDataId}/upload-images`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
   }
 };
 

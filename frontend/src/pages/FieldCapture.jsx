@@ -148,26 +148,47 @@ export default function FieldCapture() {
             lat: parseFloat(formData.gps.latitude) || 0,
             lng: parseFloat(formData.gps.longitude) || 0,
             polygon_vertices: formData.polygonVertices // Include polygon vertices
-          },
-          // Include field data if provided
-          field_data: {
-            species: formData.details.species,
-            canopy_cover: formData.details.canopyCover[0],
-            soil_type: formData.details.soilType,
-            notes: formData.details.notes,
-            measurements: formData.media.measurements,
-            photos_count: formData.media.photos.length
           }
         };
 
-        await projectsAPI.create(projectData);
-        toast({
-          title: "Success",
-          description: "Project created successfully!"
-        });
+        console.log('Creating project with data:', projectData);
+        const createdProject = await projectsAPI.create(projectData);
+        console.log('Project created:', createdProject);
+        
+        // If there are photos, upload them directly to the project
+        if (formData.media.photos.length > 0 && createdProject.id) {
+          try {
+            console.log(`Uploading ${formData.media.photos.length} images to project ${createdProject.id}`);
+            const formDataObj = new FormData();
+            formData.media.photos.forEach((photo) => {
+              formDataObj.append('files', photo.file);
+            });
+
+            const uploadResult = await projectsAPI.uploadProjectImages(createdProject.id, formDataObj);
+            console.log('Images uploaded successfully:', uploadResult);
+            
+            toast({
+              title: "Success",
+              description: `Project created with ${formData.media.photos.length} images!`
+            });
+          } catch (imageError) {
+            console.error('Failed to upload images:', imageError);
+            // Don't fail the entire project creation if images fail
+            toast({
+              title: "Warning",
+              description: "Project created but some images failed to upload.",
+              variant: "warning"
+            });
+          }
+        } else {
+          toast({
+            title: "Success",
+            description: "Project created successfully!"
+          });
+        }
         
         // Navigate back to projects page
-        navigate('/projects');
+        setTimeout(() => navigate('/projects'), 500);
       } else {
         // Mock save functionality for field data
         const newEntry = {

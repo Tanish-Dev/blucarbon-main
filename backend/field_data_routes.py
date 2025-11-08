@@ -5,38 +5,48 @@ from .server import (
     FieldData, FieldDataCreate, User, get_current_active_user, 
     require_role, UserRole, db, logger
 )
-import ipfshttpclient
 import os
 import tempfile
 import numpy as np
 from PIL import Image
-import tensorflow as tf
+import base64
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/field-data", tags=["field-data"])
 
-# IPFS Configuration
-IPFS_API_URL = os.environ.get('IPFS_API_URL', '/ip4/127.0.0.1/tcp/5001')
-
-def get_ipfs_client():
+async def store_image_as_base64(file_content: bytes, filename: str) -> dict:
+    """Convert image to base64 and store metadata"""
     try:
-        return ipfshttpclient.connect(IPFS_API_URL)
-    except Exception as e:
-        logger.error(f"Failed to connect to IPFS: {e}")
-        return None
-
-async def upload_to_ipfs(file_content: bytes, filename: str) -> Optional[str]:
-    """Upload file to IPFS and return hash"""
-    try:
-        client = get_ipfs_client()
-        if not client:
-            return None
+        # Convert to base64
+        base64_image = base64.b64encode(file_content).decode('utf-8')
         
-        result = client.add_bytes(file_content)
-        ipfs_hash = result
-        logger.info(f"Uploaded {filename} to IPFS: {ipfs_hash}")
-        return ipfs_hash
+        # Determine content type from filename extension
+        extension = filename.lower().split('.')[-1]
+        content_type_map = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        }
+        content_type = content_type_map.get(extension, 'image/jpeg')
+        
+        # Create data URL format
+        data_url = f"data:{content_type};base64,{base64_image}"
+        
+        # Create image metadata
+        image_data = {
+            "id": f"img_{datetime.now(timezone.utc).timestamp()}_{filename}",
+            "filename": filename,
+            "data_url": data_url,
+            "size": len(file_content),
+            "uploaded_at": datetime.now(timezone.utc)
+        }
+        
+        logger.info(f"Converted {filename} to base64 (size: {len(file_content)} bytes)")
+        return image_data
     except Exception as e:
-        logger.error(f"Error uploading to IPFS: {e}")
+        logger.error(f"Error converting image to base64: {e}")
         return None
 
 async def analyze_image_credibility(image_path: str) -> dict:
@@ -121,7 +131,7 @@ async def upload_field_images(
         field_data_obj.collector_id != current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    uploaded_hashes = []
+    uploaded_images = []
     analysis_results = []
     
     for file in files:
@@ -131,12 +141,12 @@ async def upload_field_images(
         # Read file content
         content = await file.read()
         
-        # Upload to IPFS
-        ipfs_hash = await upload_to_ipfs(content, file.filename)
-        if ipfs_hash:
-            uploaded_hashes.append(ipfs_hash)
+        # Store image as base64
+        image_data = await store_image_as_base64(content, file.filename)
+        if image_data:
+            uploaded_images.append(image_data)
             
-            # Save image temporarily for CNN analysis
+            # Save image temporarily for CNN analysis (optional)
             with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
                 tmp_file.write(content)
                 tmp_file_path = tmp_file.name
@@ -145,7 +155,7 @@ async def upload_field_images(
                 # Analyze image credibility
                 analysis = await analyze_image_credibility(tmp_file_path)
                 analysis_results.append({
-                    "image_hash": ipfs_hash,
+                    "image_id": image_data["id"],
                     "filename": file.filename,
                     **analysis
                 })
@@ -159,9 +169,13 @@ async def upload_field_images(
     else:
         avg_credibility = 0.0
     
+    # Get existing images list
+    existing_images = field_data_obj.images if isinstance(field_data_obj.images, list) else []
+    
     # Update field data with images and analysis
     update_data = {
-        "images": field_data_obj.images + uploaded_hashes,
+        "images": existing_images + [img["data_url"] for img in uploaded_images],
+        "image_metadata": uploaded_images,  # Store full metadata separately
         "credibility_score": avg_credibility,
         "analysis_results": analysis_results
     }
@@ -172,8 +186,8 @@ async def upload_field_images(
     )
     
     return {
-        "message": f"Uploaded {len(uploaded_hashes)} images successfully",
-        "ipfs_hashes": uploaded_hashes,
+        "message": f"Uploaded {len(uploaded_images)} images successfully",
+        "images": uploaded_images,
         "credibility_score": avg_credibility,
         "analysis_results": analysis_results
     }

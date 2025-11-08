@@ -211,62 +211,84 @@ export default function Projects() {
       {/* Projects Grid */}
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
         {filteredProjects.map((project) => (
-          <div key={project.id} className="bg-white border border-[#E5EAF0] rounded-2xl p-6 hover:border-[#D9E2EC] transition-all hover:shadow-[0_1px_2px_rgba(16,24,40,0.06),0_8px_24px_rgba(16,24,40,0.06)]">
-            <div className="flex gap-4 h-full">
-              {/* Content */}
-              <div className="flex-1 space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-[#0A0F1C] mb-2 leading-tight">
-                    {project.title}
-                  </h3>
-                  <p className="text-[#475569] text-sm leading-relaxed line-clamp-2">
-                    {project.description}
-                  </p>
-                </div>
-
-                {/* Chips */}
-                <div className="flex flex-wrap gap-1.5">
-                  <Chip status={project.methodology} size="sm">{project.methodology}</Chip>
-                  <Chip status={project.status} size="sm" className={getStatusColor(project.status)}>
-                    {project.status}
-                  </Chip>
-                  <Chip size="sm">{project.vintage}</Chip>
-                </div>
-
-                {/* Mini Metrics */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-center p-2 bg-[#F7F8FA] rounded-lg">
-                    <div className="text-sm font-semibold text-[#0A0F1C]">
-                      {project.area_hectares} ha
-                    </div>
-                    <div className="text-xs text-[#65728A]">Area</div>
+          <div key={project.id} className="bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden hover:border-[#D9E2EC] transition-all hover:shadow-[0_1px_2px_rgba(16,24,40,0.06),0_8px_24px_rgba(16,24,40,0.06)]">
+            {/* Project Image */}
+            {project.images && project.images.length > 0 && (
+              <div className="aspect-video w-full bg-gradient-to-br from-emerald-50 to-sky-50 overflow-hidden">
+                <img 
+                  src={project.images[0]} 
+                  alt={project.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.style.background = 'linear-gradient(to bottom right, #ecfdf5, #f0f9ff)';
+                  }}
+                />
+              </div>
+            )}
+            
+            <div className="p-6">
+              <div className="flex gap-4 h-full">
+                {/* Content */}
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0A0F1C] mb-2 leading-tight">
+                      {project.title}
+                    </h3>
+                    <p className="text-[#475569] text-sm leading-relaxed line-clamp-2">
+                      {project.description}
+                    </p>
                   </div>
-                  <div className="text-center p-2 bg-[#F7F8FA] rounded-lg">
-                    <div className="text-sm font-semibold text-[#0A0F1C]">
-                      {project.metrics?.credits_issued || 0} tCO2e
-                    </div>
-                    <div className="text-xs text-[#65728A]">Issued</div>
-                  </div>
-                </div>
 
-                {/* Action */}
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-between border-[#E5EAF0] hover:border-[#D9E2EC]"
-                    onClick={() => console.log('View project:', project.id)}
-                  >
-                    View Project
-                    <ExternalLink className="w-3 h-3" />
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    onClick={() => handleDeleteProject(project.id)}
-                  >
-                    Delete
-                  </Button>
+                  {/* Chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <Chip status={project.methodology} size="sm">{project.methodology}</Chip>
+                    <Chip status={project.status} size="sm" className={getStatusColor(project.status)}>
+                      {project.status}
+                    </Chip>
+                    <Chip size="sm">{project.vintage}</Chip>
+                    {project.images && project.images.length > 0 && (
+                      <Chip size="sm" className="bg-purple-50 text-purple-700 border-purple-200">
+                        {project.images.length} {project.images.length === 1 ? 'photo' : 'photos'}
+                      </Chip>
+                    )}
+                  </div>
+
+                  {/* Mini Metrics */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-center p-2 bg-[#F7F8FA] rounded-lg">
+                      <div className="text-sm font-semibold text-[#0A0F1C]">
+                        {project.area_hectares} ha
+                      </div>
+                      <div className="text-xs text-[#65728A]">Area</div>
+                    </div>
+                    <div className="text-center p-2 bg-[#F7F8FA] rounded-lg">
+                      <div className="text-sm font-semibold text-[#0A0F1C]">
+                        {project.metrics?.credits_issued || 0} tCO2e
+                      </div>
+                      <div className="text-xs text-[#65728A]">Issued</div>
+                    </div>
+                  </div>
+
+                  {/* Action */}
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-between border-[#E5EAF0] hover:border-[#D9E2EC]"
+                      onClick={() => console.log('View project:', project.id)}
+                    >
+                      View Project
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => handleDeleteProject(project.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

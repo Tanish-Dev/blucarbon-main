@@ -17,6 +17,7 @@ import json
 import tempfile
 from enum import Enum
 import aiofiles
+import base64
 
 # Load environment variables
 ROOT_DIR = Path(__file__).parent
@@ -129,6 +130,8 @@ class Project(BaseModel):
     validator_id: Optional[str] = None
     metrics: ProjectMetrics = Field(default_factory=ProjectMetrics)
     blockchain_hash: Optional[str] = None
+    images: List[str] = []  # Base64 data URLs for project images
+    image_metadata: Optional[List[Dict[str, Any]]] = []  # Image metadata (filename, size, etc)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -140,6 +143,7 @@ class ProjectCreate(BaseModel):
     location: Dict[str, Any]
     area_hectares: float
     vintage: str
+    images: Optional[List[str]] = []  # Allow images to be passed during creation
 
 class FieldData(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -150,7 +154,8 @@ class FieldData(BaseModel):
     canopy_cover: float = 0.0
     soil_type: Optional[str] = None
     notes: Optional[str] = None
-    images: List[str] = []  # IPFS hashes
+    images: List[str] = []  # Base64 data URLs
+    image_metadata: Optional[List[Dict[str, Any]]] = []  # Full image metadata
     measurements: Optional[str] = None
     credibility_score: Optional[float] = None  # From CNN analysis
     analysis_results: Optional[List[Dict[str, Any]]] = None
@@ -171,7 +176,7 @@ class FieldDataCreate(BaseModel):
 
 class CreditMetadata(BaseModel):
     mrv_hash: str
-    data_bundle_uri: str  # IPFS URI
+    data_bundle_uri: str  # Data bundle identifier or URI
     uncertainty_class: str
     verification_standard: str
     project_id: str
@@ -250,12 +255,41 @@ def require_role(required_roles: List[UserRole]):
         return current_user
     return role_checker
 
-# Utility functions for IPFS and CNN integration
-async def mock_upload_to_ipfs(file_content: bytes, filename: str) -> str:
-    """Mock IPFS upload - replace with actual IPFS integration"""
-    file_hash = hashlib.sha256(file_content).hexdigest()[:20]
-    logger.info(f"Mock uploaded {filename} to IPFS: {file_hash}")
-    return f"Qm{file_hash}"
+# Utility functions for image storage and CNN integration
+async def store_image_as_base64(file_content: bytes, filename: str) -> dict:
+    """Convert image to base64 and store metadata"""
+    try:
+        # Convert to base64
+        base64_image = base64.b64encode(file_content).decode('utf-8')
+        
+        # Determine content type from filename extension
+        extension = filename.lower().split('.')[-1]
+        content_type_map = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        }
+        content_type = content_type_map.get(extension, 'image/jpeg')
+        
+        # Create data URL format
+        data_url = f"data:{content_type};base64,{base64_image}"
+        
+        # Create image metadata
+        image_data = {
+            "id": f"img_{datetime.now(timezone.utc).timestamp()}_{filename}",
+            "filename": filename,
+            "data_url": data_url,
+            "size": len(file_content),
+            "uploaded_at": datetime.now(timezone.utc)
+        }
+        
+        logger.info(f"Converted {filename} to base64 (size: {len(file_content)} bytes)")
+        return image_data
+    except Exception as e:
+        logger.error(f"Error converting image to base64: {e}")
+        return None
 
 async def mock_analyze_image_credibility(image_content: bytes) -> dict:
     """Mock CNN analysis - replace with actual CNN model integration"""
@@ -425,6 +459,60 @@ async def delete_project(
     await db.projects.delete_one({"id": project_id})
     return {"message": "Project deleted successfully"}
 
+@api_router.post("/projects/{project_id}/upload-images")
+async def upload_project_images(
+    project_id: str,
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Upload images directly to a project"""
+    
+    # Get project
+    project_dict = await db.projects.find_one({"id": project_id})
+    if not project_dict:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    project = Project(**project_dict)
+    
+    # Check permissions
+    if current_user.role == UserRole.USER and project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    uploaded_images = []
+    
+    for file in files:
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail=f"File {file.filename} is not an image")
+        
+        # Read file content
+        content = await file.read()
+        
+        # Store image as base64
+        image_data = await store_image_as_base64(content, file.filename)
+        if image_data:
+            uploaded_images.append(image_data)
+    
+    # Get existing images
+    existing_images = project.images if isinstance(project.images, list) else []
+    existing_metadata = project.image_metadata if isinstance(project.image_metadata, list) else []
+    
+    # Update project with images
+    update_data = {
+        "images": existing_images + [img["data_url"] for img in uploaded_images],
+        "image_metadata": existing_metadata + uploaded_images,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": update_data}
+    )
+    
+    return {
+        "message": f"Uploaded {len(uploaded_images)} images successfully",
+        "images": uploaded_images
+    }
+
 # Field Data endpoints
 @api_router.post("/field-data", response_model=FieldData)
 async def create_field_data(
@@ -469,7 +557,7 @@ async def upload_field_images(
         field_data_obj.collector_id != current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    uploaded_hashes = []
+    uploaded_images = []
     analysis_results = []
     
     for file in files:
@@ -479,17 +567,18 @@ async def upload_field_images(
         # Read file content
         content = await file.read()
         
-        # Upload to IPFS (mock)
-        ipfs_hash = await mock_upload_to_ipfs(content, file.filename)
-        uploaded_hashes.append(ipfs_hash)
-        
-        # Analyze image credibility (mock)
-        analysis = await mock_analyze_image_credibility(content)
-        analysis_results.append({
-            "image_hash": ipfs_hash,
-            "filename": file.filename,
-            **analysis
-        })
+        # Store image as base64
+        image_data = await store_image_as_base64(content, file.filename)
+        if image_data:
+            uploaded_images.append(image_data)
+            
+            # Analyze image credibility (mock)
+            analysis = await mock_analyze_image_credibility(content)
+            analysis_results.append({
+                "image_id": image_data["id"],
+                "filename": file.filename,
+                **analysis
+            })
     
     # Calculate overall credibility score
     if analysis_results:
@@ -497,9 +586,13 @@ async def upload_field_images(
     else:
         avg_credibility = 0.0
     
+    # Get existing images
+    existing_images = field_data_obj.images if isinstance(field_data_obj.images, list) else []
+    
     # Update field data with images and analysis
     update_data = {
-        "images": field_data_obj.images + uploaded_hashes,
+        "images": existing_images + [img["data_url"] for img in uploaded_images],
+        "image_metadata": uploaded_images,
         "credibility_score": avg_credibility,
         "analysis_results": analysis_results
     }
@@ -510,8 +603,8 @@ async def upload_field_images(
     )
     
     return {
-        "message": f"Uploaded {len(uploaded_hashes)} images successfully",
-        "ipfs_hashes": uploaded_hashes,
+        "message": f"Uploaded {len(uploaded_images)} images successfully",
+        "images": uploaded_images,
         "credibility_score": avg_credibility,
         "analysis_results": analysis_results
     }
