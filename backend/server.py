@@ -678,6 +678,129 @@ async def get_credit_stats(
     
     return stats
 
+# Validation endpoints for dMRV Studio
+@api_router.get("/validation/queue", response_model=List[Project])
+async def get_validation_queue(
+    current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
+):
+    """Get projects in validation queue (in_review status)"""
+    projects = await db.projects.find({"status": ProjectStatus.IN_REVIEW}).to_list(1000)
+    return [Project(**project) for project in projects]
+
+@api_router.put("/validation/projects/{project_id}/approve")
+async def approve_project(
+    project_id: str,
+    notes: Optional[str] = None,
+    current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
+):
+    """Approve a project and move it to monitoring phase"""
+    project_dict = await db.projects.find_one({"id": project_id})
+    if not project_dict:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Update project status
+    update_data = {
+        "status": ProjectStatus.MONITORING,
+        "validator_id": current_user.id,
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    if notes:
+        update_data["validation_notes"] = notes
+    
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": update_data}
+    )
+    
+    logger.info(f"Project {project_id} approved by validator {current_user.id}")
+    
+    updated_project_dict = await db.projects.find_one({"id": project_id})
+    return {
+        "message": "Project approved successfully",
+        "project": Project(**updated_project_dict)
+    }
+
+@api_router.put("/validation/projects/{project_id}/reject")
+async def reject_project(
+    project_id: str,
+    notes: str,
+    current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
+):
+    """Reject a project with validation notes"""
+    project_dict = await db.projects.find_one({"id": project_id})
+    if not project_dict:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Update project status
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": {
+            "status": ProjectStatus.REJECTED,
+            "validator_id": current_user.id,
+            "validation_notes": notes,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    logger.info(f"Project {project_id} rejected by validator {current_user.id}")
+    
+    updated_project_dict = await db.projects.find_one({"id": project_id})
+    return {
+        "message": "Project rejected",
+        "project": Project(**updated_project_dict)
+    }
+
+@api_router.post("/validation/projects/{project_id}/mrv-report")
+async def generate_mrv_report(
+    project_id: str,
+    analysis_data: Dict[str, Any],
+    current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
+):
+    """Generate MRV report with analysis data and hash"""
+    project_dict = await db.projects.find_one({"id": project_id})
+    if not project_dict:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Generate MRV hash
+    data_string = json.dumps({
+        "project_id": project_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "validator_id": current_user.id,
+        **analysis_data
+    }, sort_keys=True)
+    
+    mrv_hash = hashlib.sha256(data_string.encode()).hexdigest()
+    
+    # Store report data
+    report = {
+        "id": str(uuid.uuid4()),
+        "project_id": project_id,
+        "validator_id": current_user.id,
+        "analysis_data": analysis_data,
+        "mrv_hash": f"0x{mrv_hash}",
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.mrv_reports.insert_one(report)
+    
+    # Update project with MRV hash
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": {
+            "mrv_hash": f"0x{mrv_hash}",
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    logger.info(f"MRV report generated for project {project_id} with hash {mrv_hash}")
+    
+    return {
+        "message": "MRV report generated successfully",
+        "mrv_hash": f"0x{mrv_hash}",
+        "report": report
+    }
+
 # Blockchain integration endpoints (mock implementation)
 @api_router.post("/projects/{project_id}/register-blockchain")
 async def register_project_blockchain(

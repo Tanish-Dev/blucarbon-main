@@ -214,4 +214,27 @@ export const healthAPI = {
   }
 };
 
+// Validation API for dMRV Studio
+export const validationAPI = {
+  getQueue: async () => {
+    const response = await api.get('/validation/queue');
+    return response.data;
+  },
+
+  approveProject: async (projectId, notes = null) => {
+    const response = await api.put(`/validation/projects/${projectId}/approve`, { notes });
+    return response.data;
+  },
+
+  rejectProject: async (projectId, notes) => {
+    const response = await api.put(`/validation/projects/${projectId}/reject`, { notes });
+    return response.data;
+  },
+
+  generateMRVReport: async (projectId, analysisData) => {
+    const response = await api.post(`/validation/projects/${projectId}/mrv-report`, analysisData);
+    return response.data;
+  }
+};
+
 export default api;
