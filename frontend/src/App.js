@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import FieldCapture from "./pages/FieldCapture";
 import DMRVStudio from "./pages/DMRVStudio";
 import Credits from "./pages/Credits";
@@ -37,6 +38,7 @@ function App() {
             >
               <Route index element={<Dashboard />} />
               <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:projectId" element={<ProjectDetail />} />
               <Route path="/field-capture" element={<FieldCapture />} />
               <Route path="/create-project" element={<FieldCapture />} />
               <Route path="/dmrv-studio" element={<DMRVStudio />} />

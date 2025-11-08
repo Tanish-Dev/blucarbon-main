@@ -18,10 +18,23 @@ import tempfile
 from enum import Enum
 import aiofiles
 import base64
+from bson import ObjectId
 
 # Load environment variables
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Import Sentinel Hub service
+try:
+    from sentinel_hub_service import get_sentinel_service
+    SENTINEL_HUB_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"Sentinel Hub service not available: {e}")
+    SENTINEL_HUB_AVAILABLE = False
+except Exception as e:
+    logging.error(f"Error importing Sentinel Hub service: {e}")
+    SENTINEL_HUB_AVAILABLE = False
+
 
 # Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -948,6 +961,107 @@ async def issue_credit_blockchain(
         "transaction_hash": mock_tx_hash,
         "token_id": mock_token_id
     }
+
+# ============================================
+# SENTINEL HUB SATELLITE IMAGERY ENDPOINTS
+# ============================================
+
+@api_router.get("/satellite/imagery/{project_id}")
+async def get_satellite_imagery(
+    project_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get real Sentinel-2 satellite imagery for a project
+    Returns baseline and monitoring imagery with NDVI
+    """
+    if not SENTINEL_HUB_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="Sentinel Hub service is not available. Please check server logs."
+        )
+    
+    try:
+        # Get project
+        project = await db.projects.find_one({"_id": ObjectId(project_id)})
+        
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Get polygon coordinates
+        polygon = project.get('location', {}).get('polygon', [])
+        if not polygon:
+            raise HTTPException(status_code=400, detail="Project has no polygon defined")
+        
+        # Get dates
+        baseline_date = project.get('baseline_date', '2023-01-15')
+        monitoring_date = project.get('monitoring_date', '2024-01-15')
+        
+        # Get Sentinel Hub service
+        sentinel = get_sentinel_service()
+        
+        # Fetch temporal comparison
+        result = sentinel.compare_temporal_imagery(
+            polygon=polygon,
+            baseline_date=baseline_date,
+            monitoring_date=monitoring_date
+        )
+        
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error fetching satellite imagery: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch satellite imagery")
+
+@api_router.post("/satellite/custom-imagery")
+async def get_custom_imagery(
+    data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get custom satellite imagery for any polygon and date
+    
+    Request body:
+    {
+        "polygon": [{"lat": 16.3, "lng": 81.8}, ...],
+        "date": "2024-01-15",
+        "type": "rgb" or "ndvi",
+        "cloud_coverage": 20
+    }
+    """
+    if not SENTINEL_HUB_AVAILABLE:
+        raise HTTPException(
+            status_code=503, 
+            detail="Sentinel Hub service is not available. Please check server logs."
+        )
+    
+    try:
+        polygon = data.get('polygon')
+        date = data.get('date')
+        imagery_type = data.get('type', 'rgb')
+        cloud_coverage = data.get('cloud_coverage', 20)
+        
+        if not polygon or not date:
+            raise HTTPException(status_code=400, detail="polygon and date are required")
+        
+        sentinel = get_sentinel_service()
+        
+        if imagery_type == 'ndvi':
+            result = sentinel.get_sentinel2_ndvi(polygon, date, cloud_coverage)
+        else:
+            result = sentinel.get_sentinel2_true_color(polygon, date, cloud_coverage)
+        
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error fetching custom imagery: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch custom imagery")
+
+# ============================================
 
 # Health check
 @api_router.get("/health")

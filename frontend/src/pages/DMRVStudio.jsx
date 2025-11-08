@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import MetricTile from '../components/MetricTile';
 import Chip from '../components/Chip';
-import ProjectMap from '../components/ProjectMap';
+import SatelliteComparisonMap from '../components/SatelliteComparisonMap';
 
 export default function DMRVStudio() {
   const [view, setView] = useState('queue'); // 'queue' or 'validation'
@@ -605,49 +605,13 @@ export default function DMRVStudio() {
         {/* Center Panel - Map */}
         <div className="flex-1 p-6">
           <div className="h-full bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden">
-            {selectedProject?.location?.coordinates ? (
-              <ProjectMap 
-                coordinates={selectedProject.location.coordinates}
-                polygon={selectedProject.location.polygon}
-                editable={false}
-              />
-            ) : (
-              <div className="h-full bg-gradient-to-br from-[#E0F2FE] via-[#ECFDF5] to-[#FEF3C7] relative">
-                <div className="absolute inset-4">
-                  {/* Baseline layer */}
-                  {layers.baseline.visible && (
-                    <div className="absolute inset-0 bg-[#10B981]/20 rounded-lg"></div>
-                  )}
-                  
-                  {/* Monitoring layer */}
-                  {layers.monitoring.visible && (
-                    <div className="absolute inset-2 bg-[#0A6BFF]/20 rounded-lg"></div>
-                  )}
-                  
-                  {/* Change areas */}
-                  <div className="absolute top-8 right-8 w-16 h-16 bg-[#10B981] rounded-lg opacity-60"></div>
-                  <div className="absolute bottom-12 left-12 w-24 h-12 bg-[#1E9E6A] rounded-lg opacity-60"></div>
-                  <div className="absolute top-1/2 left-1/3 w-8 h-8 bg-[#F59E0B] rounded-lg opacity-60"></div>
-                  
-                  {/* Center info */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 text-center shadow-lg">
-                      <Map className="w-12 h-12 text-[#0A6BFF] mx-auto mb-3" />
-                      <h3 className="text-lg font-semibold text-[#0A0F1C] mb-2">
-                        {selectedProject?.title || 'Project Area'}
-                      </h3>
-                      <p className="text-sm text-[#475569] mb-4">
-                        {selectedProject?.area_hectares || 0} ha • {selectedProject?.methodology || 'VM0033'}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-[#65728A]">
-                        <div className="w-2 h-2 bg-[#10B981] rounded-full"></div>
-                        <span>Gain +{analysis.areaChange?.toFixed(1) || 0} ha</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <SatelliteComparisonMap 
+              coordinates={selectedProject?.location?.coordinates}
+              polygon={selectedProject?.location?.polygon}
+              projectId={selectedProject?._id}
+              activeLayers={layers}
+              className="h-full"
+            />
           </div>
         </div>
 

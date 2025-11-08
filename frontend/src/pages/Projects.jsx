@@ -276,7 +276,10 @@ export default function Projects() {
                       variant="outline" 
                       size="sm" 
                       className="w-full justify-between border-[#E5EAF0] hover:border-[#D9E2EC]"
-                      onClick={() => console.log('View project:', project.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/projects/${project.id}`);
+                      }}
                     >
                       View Project
                       <ExternalLink className="w-3 h-3" />
@@ -284,7 +287,10 @@ export default function Projects() {
                     <Button 
                       variant="destructive" 
                       size="sm" 
-                      onClick={() => handleDeleteProject(project.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProject(project.id);
+                      }}
                     >
                       Delete
                     </Button>

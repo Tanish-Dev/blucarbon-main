@@ -273,11 +273,26 @@ export default function Dashboard() {
                   className="group flex items-start gap-4 p-4 bg-gradient-to-r from-slate-50 to-transparent rounded-xl hover:from-emerald-50 hover:shadow-sm transition-all duration-200 cursor-pointer border border-transparent hover:border-emerald-100"
                   onClick={() => navigate('/projects')}
                 >
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                      <FolderKanban className="w-5 h-5 text-emerald-600" />
+                  {/* Project Image Thumbnail */}
+                  {project.images && project.images.length > 0 ? (
+                    <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-emerald-50 to-sky-50">
+                      <img 
+                        src={project.images[0]} 
+                        alt={project.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = '<div class="w-full h-full bg-emerald-100 flex items-center justify-center"><svg class="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>';
+                        }}
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                        <FolderKanban className="w-5 h-5 text-emerald-600" />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-slate-900 font-semibold leading-tight group-hover:text-emerald-700 transition-colors">
@@ -294,6 +309,12 @@ export default function Dashboard() {
                       </span>
                       <span className="text-slate-400">•</span>
                       <span>{project.area_hectares} hectares</span>
+                      {project.images && project.images.length > 0 && (
+                        <>
+                          <span className="text-slate-400">•</span>
+                          <span className="text-purple-600 font-medium">{project.images.length} {project.images.length === 1 ? 'photo' : 'photos'}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <ArrowUpRight className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:text-emerald-600 transition-all" />
