@@ -1,7 +1,17 @@
-version: 2
-build:
-  os: ubuntu-22.04
-  commands:
-    - echo "Building backend..."
-    - pip install -r requirements.txt
-run: uvicorn server:app --host 0.0.0.0 --port $PORT
+services:
+  - type: web
+    name: blucarbon-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: DB_NAME
+        value: carbon_credit_db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0
