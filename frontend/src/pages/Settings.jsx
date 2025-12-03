@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -18,11 +20,14 @@ import {
   Trash2,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  PlayCircle
 } from 'lucide-react';
 import Chip from '../components/Chip';
 
 export default function Settings() {
+  const { resetTour } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [showApiKey, setShowApiKey] = useState(false);
   const [settings, setSettings] = useState({
@@ -70,6 +75,11 @@ export default function Settings() {
   const generateNewApiKey = () => {
     const newKey = 'bc_sk_live_' + Math.random().toString(36).substring(2, 50);
     updateSettings('security', { apiKey: newKey });
+  };
+
+  const handleRestartTour = () => {
+    resetTour();
+    navigate('/dashboard');
   };
 
   return (
@@ -422,6 +432,29 @@ export default function Settings() {
                     <SelectItem value="yyyy-mm-dd">YYYY-MM-DD</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Dashboard Tour Section */}
+          <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-200 rounded-2xl p-8">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-emerald-100 rounded-xl">
+                <PlayCircle className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-semibold text-[#0A0F1C] mb-2">Dashboard Tour</h3>
+                <p className="text-[#475569] mb-4">
+                  Need a refresher? Restart the interactive dashboard tour to learn about all the features 
+                  and how to make the most of the BluCarbon platform.
+                </p>
+                <Button 
+                  onClick={handleRestartTour}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <PlayCircle className="w-4 h-4 mr-2" />
+                  Restart Dashboard Tour
+                </Button>
               </div>
             </div>
           </div>

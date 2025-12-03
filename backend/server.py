@@ -35,6 +35,21 @@ except Exception as e:
     logging.error(f"Error importing Sentinel Hub service: {e}")
     SENTINEL_HUB_AVAILABLE = False
 
+# Import Blockchain Integration
+try:
+    from blockchain_integration import BlockchainIntegration
+    blockchain = BlockchainIntegration()
+    BLOCKCHAIN_AVAILABLE = blockchain.is_connected
+    logging.info(f"Blockchain integration status: {'✅ Available' if BLOCKCHAIN_AVAILABLE else '❌ Not available'}")
+except ImportError as e:
+    logging.warning(f"Blockchain integration not available: {e}")
+    BLOCKCHAIN_AVAILABLE = False
+    blockchain = None
+except Exception as e:
+    logging.error(f"Error importing blockchain integration: {e}")
+    BLOCKCHAIN_AVAILABLE = False
+    blockchain = None
+
 
 # Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -409,6 +424,12 @@ async def get_projects(
         query["ecosystem_type"] = ecosystem_type
     
     projects = await db.projects.find(query).to_list(1000)
+    
+    # Convert MongoDB _id to string id for frontend
+    for project in projects:
+        if '_id' in project and 'id' not in project:
+            project['id'] = str(project['_id'])
+    
     return [Project(**project) for project in projects]
 
 @api_router.get("/projects/{project_id}", response_model=Project)
@@ -863,7 +884,7 @@ async def generate_mrv_report(
     analysis_data: Dict[str, Any],
     current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
 ):
-    """Generate MRV report with analysis data and hash"""
+    """Generate MRV report with analysis data and hash, then store on blockchain"""
     project_dict = await db.projects.find_one({"id": project_id})
     if not project_dict:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -877,15 +898,17 @@ async def generate_mrv_report(
     }, sort_keys=True)
     
     mrv_hash = hashlib.sha256(data_string.encode()).hexdigest()
+    mrv_hash_hex = f"0x{mrv_hash}"
     
-    # Store report data
+    # Store report data in database
     report = {
         "id": str(uuid.uuid4()),
         "project_id": project_id,
         "validator_id": current_user.id,
         "analysis_data": analysis_data,
-        "mrv_hash": f"0x{mrv_hash}",
-        "created_at": datetime.now(timezone.utc)
+        "mrv_hash": mrv_hash_hex,
+        "created_at": datetime.now(timezone.utc),
+        "blockchain_status": "pending"
     }
     
     await db.mrv_reports.insert_one(report)
@@ -894,18 +917,98 @@ async def generate_mrv_report(
     await db.projects.update_one(
         {"id": project_id},
         {"$set": {
-            "mrv_hash": f"0x{mrv_hash}",
+            "mrv_hash": mrv_hash_hex,
             "updated_at": datetime.now(timezone.utc)
         }}
     )
     
     logger.info(f"MRV report generated for project {project_id} with hash {mrv_hash}")
     
-    return {
+    # Store on blockchain
+    blockchain_result = None
+    if BLOCKCHAIN_AVAILABLE and blockchain:
+        try:
+            logger.info(f"📤 Attempting to store MRV hash on blockchain for project {project_id}")
+            
+            # Prepare metadata for blockchain
+            metadata = {
+                "project_id": project_id,
+                "project_title": project_dict.get("title", ""),
+                "validator_id": current_user.id,
+                "validator_email": current_user.email,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "analysis_summary": {
+                    "co2_absorbed": analysis_data.get("co2", 0),
+                    "area_change": analysis_data.get("areaChange", 0),
+                    "biomass_increase": analysis_data.get("biomass", 0),
+                    "confidence": analysis_data.get("confidence", 0)
+                }
+            }
+            
+            blockchain_result = await blockchain.store_mrv_hash(
+                project_id=project_id,
+                mrv_hash=mrv_hash_hex,
+                metadata=metadata
+            )
+            
+            if blockchain_result:
+                logger.info(f"✅ MRV hash stored on blockchain: {blockchain_result.get('transaction_hash')}")
+                
+                # Update report with blockchain info
+                await db.mrv_reports.update_one(
+                    {"id": report["id"]},
+                    {"$set": {
+                        "blockchain_status": "confirmed",
+                        "blockchain_tx_hash": blockchain_result.get("transaction_hash"),
+                        "blockchain_block": blockchain_result.get("block_number"),
+                        "blockchain_explorer_url": blockchain_result.get("explorer_url")
+                    }}
+                )
+                
+                # Also update project
+                await db.projects.update_one(
+                    {"id": project_id},
+                    {"$set": {
+                        "blockchain_tx_hash": blockchain_result.get("transaction_hash"),
+                        "blockchain_verified": True
+                    }}
+                )
+                
+                report["blockchain_tx_hash"] = blockchain_result.get("transaction_hash")
+                report["blockchain_explorer_url"] = blockchain_result.get("explorer_url")
+            else:
+                logger.warning(f"⚠️ Failed to store MRV hash on blockchain for project {project_id}")
+                await db.mrv_reports.update_one(
+                    {"id": report["id"]},
+                    {"$set": {"blockchain_status": "failed"}}
+                )
+        except Exception as e:
+            logger.error(f"❌ Error storing MRV hash on blockchain: {e}")
+            await db.mrv_reports.update_one(
+                {"id": report["id"]},
+                {"$set": {
+                    "blockchain_status": "failed",
+                    "blockchain_error": str(e)
+                }}
+            )
+    else:
+        logger.warning("⚠️ Blockchain not available - MRV hash stored in database only")
+        await db.mrv_reports.update_one(
+            {"id": report["id"]},
+            {"$set": {"blockchain_status": "blockchain_unavailable"}}
+        )
+    
+    response = {
         "message": "MRV report generated successfully",
-        "mrv_hash": f"0x{mrv_hash}",
-        "report": report
+        "mrv_hash": mrv_hash_hex,
+        "report": report,
+        "blockchain_available": BLOCKCHAIN_AVAILABLE
     }
+    
+    if blockchain_result:
+        response["blockchain"] = blockchain_result
+    
+    return response
 
 # Blockchain integration endpoints (mock implementation)
 @api_router.post("/projects/{project_id}/register-blockchain")

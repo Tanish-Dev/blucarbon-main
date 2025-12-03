@@ -3,7 +3,7 @@ import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
-import { projectsAPI } from '../services/api';
+import { projectsAPI, validationAPI } from '../services/api';
 import { toast } from '../components/ui/use-toast';
 import { 
   Layers, 
@@ -96,6 +96,10 @@ export default function DMRVStudio() {
   };
 
   const selectProject = (project) => {
+    console.log('📋 Selected project:', project);
+    console.log('🆔 Project ID:', project._id || project.id || 'NO ID FOUND');
+    console.log('📍 Project location:', project.location);
+    console.log('🔷 Polygon:', project.location?.polygon);
     setSelectedProject(project);
     setView('validation');
     setValidationNotes('');
@@ -146,6 +150,74 @@ export default function DMRVStudio() {
     
     try {
       const newStatus = approve ? 'monitoring' : 'rejected';
+      
+      // If approving, generate MRV report and store on blockchain
+      if (approve && analysis.co2) {
+        toast({
+          title: "Generating MRV Report",
+          description: "Creating report and storing hash on blockchain...",
+        });
+        
+        try {
+          // Generate MRV report with blockchain storage
+          const mrvResult = await validationAPI.generateMRVReport(
+            selectedProject.id,
+            {
+              biomass: analysis.biomass,
+              co2: analysis.co2,
+              areaChange: analysis.areaChange,
+              confidence: analysis.confidence,
+              ndvi: analysis.ndvi,
+              carbonStock: analysis.carbonStock,
+              validationNotes: validationNotes,
+              baseline_date: layers.baseline.date,
+              monitoring_date: layers.monitoring.date
+            }
+          );
+          
+          console.log('✅ MRV Report generated:', mrvResult);
+          
+          // Show blockchain success message
+          if (mrvResult.blockchain && mrvResult.blockchain.transaction_hash) {
+            toast({
+              title: "✅ Blockchain Verified",
+              description: (
+                <div>
+                  <p>MRV hash stored on Polygon blockchain!</p>
+                  <p className="text-xs mt-1 font-mono break-all">
+                    TX: {mrvResult.blockchain.transaction_hash.slice(0, 20)}...
+                  </p>
+                  {mrvResult.blockchain.explorer_url && (
+                    <a 
+                      href={mrvResult.blockchain.explorer_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline text-xs block mt-1"
+                    >
+                      View on PolygonScan
+                    </a>
+                  )}
+                </div>
+              ),
+            });
+          } else if (mrvResult.blockchain_available === false) {
+            toast({
+              title: "⚠️ Blockchain Unavailable",
+              description: "MRV hash saved to database. Blockchain connection not available.",
+              variant: "warning"
+            });
+          }
+        } catch (mrvError) {
+          console.error('Error generating MRV report:', mrvError);
+          toast({
+            title: "Warning",
+            description: "Project approved but MRV blockchain storage failed. Hash saved to database.",
+            variant: "warning"
+          });
+        }
+      }
+      
+      // Update project status
       await projectsAPI.update(selectedProject.id, {
         ...selectedProject,
         status: newStatus
@@ -608,7 +680,7 @@ export default function DMRVStudio() {
             <SatelliteComparisonMap 
               coordinates={selectedProject?.location?.coordinates}
               polygon={selectedProject?.location?.polygon}
-              projectId={selectedProject?._id}
+              projectId={selectedProject?.id || selectedProject?._id}
               activeLayers={layers}
               className="h-full"
             />

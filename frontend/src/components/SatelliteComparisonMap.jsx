@@ -177,24 +177,37 @@ export default function SatelliteComparisonMap({
   // Load real Sentinel Hub imagery
   useEffect(() => {
     const loadRealImagery = async () => {
-      if (!projectId || !polygon || polygon.length === 0) return;
+      console.log('🛰️ Sentinel Hub Load Check:', { projectId, hasPolygon: polygon?.length > 0, mapLoaded });
       
+      if (!projectId || !polygon || polygon.length === 0) {
+        console.log('⚠️ Skipping Sentinel Hub load - missing projectId or polygon');
+        return;
+      }
+      
+      console.log('🚀 Loading Sentinel Hub imagery for project:', projectId);
       setLoadingImagery(true);
       setImageryError(null);
       
       try {
+        console.log('📡 Fetching imagery from backend...');
         const imageryData = await sentinelHubService.getProjectImagery(projectId);
+        console.log('✅ Imagery data received:', imageryData);
+        
         const processedData = sentinelHubService.processImageryData(imageryData);
+        console.log('🔄 Processed data:', processedData);
         
         if (processedData) {
           setRealImagery(processedData);
+          console.log('✨ Real imagery state updated!');
           
           // Calculate bounds from polygon
           if (mapRef.current && polygonLayerRef.current) {
             const bounds = polygonLayerRef.current.getBounds();
+            console.log('📍 Polygon bounds:', bounds);
             
             // Create image overlays for baseline RGB
             if (processedData.baseline.rgb) {
+              console.log('🖼️ Adding baseline RGB overlay');
               const baselineRgbOverlay = L.imageOverlay(
                 processedData.baseline.rgb,
                 bounds,
@@ -206,6 +219,7 @@ export default function SatelliteComparisonMap({
             
             // Create image overlays for baseline NDVI
             if (processedData.baseline.ndvi) {
+              console.log('🖼️ Adding baseline NDVI overlay');
               const baselineNdviOverlay = L.imageOverlay(
                 processedData.baseline.ndvi,
                 bounds,
@@ -217,6 +231,7 @@ export default function SatelliteComparisonMap({
             
             // Create image overlays for monitoring RGB
             if (processedData.monitoring.rgb) {
+              console.log('🖼️ Adding monitoring RGB overlay');
               const monitoringRgbOverlay = L.imageOverlay(
                 processedData.monitoring.rgb,
                 bounds,
@@ -228,6 +243,7 @@ export default function SatelliteComparisonMap({
             
             // Create image overlays for monitoring NDVI
             if (processedData.monitoring.ndvi) {
+              console.log('🖼️ Adding monitoring NDVI overlay');
               const monitoringNdviOverlay = L.imageOverlay(
                 processedData.monitoring.ndvi,
                 bounds,
@@ -239,7 +255,7 @@ export default function SatelliteComparisonMap({
           }
         }
       } catch (error) {
-        console.error('Error loading Sentinel Hub imagery:', error);
+        console.error('❌ Error loading Sentinel Hub imagery:', error);
         setImageryError(error.message || 'Failed to load satellite imagery');
       } finally {
         setLoadingImagery(false);

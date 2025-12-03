@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import FeatureProjectCard from '../components/FeatureProjectCard';
 import ProjectMap from '../components/ProjectMap';
+import DashboardTour from '../components/DashboardTour';
 import { mockProject, mockActivity } from '../mock';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -11,7 +12,7 @@ import { projectsAPI, creditsAPI } from '../services/api';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasCompletedTour, completeTour } = useAuth();
   const [stats, setStats] = useState({
     total_projects: 0,
     total_credits: 0,
@@ -20,6 +21,7 @@ export default function Dashboard() {
   });
   const [recentProjects, setRecentProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [runTour, setRunTour] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -47,6 +49,22 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
+  // Start tour for first-time users after data loads
+  useEffect(() => {
+    if (!loading && !hasCompletedTour) {
+      // Small delay to ensure DOM elements are ready
+      const timer = setTimeout(() => {
+        setRunTour(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, hasCompletedTour]);
+
+  const handleTourComplete = () => {
+    setRunTour(false);
+    completeTour();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -57,6 +75,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Dashboard Tour */}
+      <DashboardTour run={runTour} onComplete={handleTourComplete} />
+
       {/* Hero Section with Gradient Background */}
       <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-sky-50 border border-slate-200 rounded-3xl p-8 md:p-12 shadow-sm">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100 rounded-full filter blur-3xl opacity-30 -mr-32 -mt-32"></div>
@@ -82,7 +103,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Overview with Icons and Gradients */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" data-tour="stats">
         <div className="group relative overflow-hidden bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-105">
           <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100 rounded-full filter blur-2xl opacity-50"></div>
           <div className="relative z-10">
@@ -157,7 +178,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions with Enhanced Design */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-sm" data-tour="quick-actions">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl md:text-2xl font-semibold text-slate-900">
             Quick Actions
@@ -243,12 +264,12 @@ export default function Dashboard() {
 
       <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
         {/* Enhanced Map Component */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1" data-tour="project-map">
           <ProjectMap />
         </div>
 
         {/* Enhanced Recent Projects */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition-colors shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition-colors shadow-sm" data-tour="recent-projects">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl md:text-2xl font-semibold text-slate-900">
               Recent Projects
