@@ -100,7 +100,7 @@ export const projectsAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
-    
+
     const response = await api.get(`/projects?${params.toString()}`);
     return response.data;
   },
@@ -163,7 +163,7 @@ export const fieldDataAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) params.append(key, value);
     });
-    
+
     const response = await api.get(`/field-data?${params.toString()}`);
     return response.data;
   },
@@ -205,7 +205,7 @@ export const creditsAPI = {
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, value);
     });
-    
+
     const response = await api.get(`/credits?${params.toString()}`);
     return response.data;
   },
@@ -258,6 +258,24 @@ export const validationAPI = {
 
   generateMRVReport: async (projectId, analysisData) => {
     const response = await api.post(`/validation/projects/${projectId}/mrv-report`, analysisData);
+    return response.data;
+  }
+};
+
+// Admin API
+export const adminAPI = {
+  getPendingApprovals: async () => {
+    const response = await api.get('/admin/pending-approvals');
+    return response.data;
+  },
+
+  approveProject: async (projectId, notes = '') => {
+    const response = await api.post(`/admin/projects/${projectId}/approve`, { notes });
+    return response.data;
+  },
+
+  rejectProject: async (projectId, notes = '') => {
+    const response = await api.post(`/admin/projects/${projectId}/reject`, { notes });
     return response.data;
   }
 };

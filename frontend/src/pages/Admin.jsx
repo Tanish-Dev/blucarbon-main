@@ -1,24 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { 
-  Shield, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  User, 
-  UserPlus, 
-  Trash2, 
-  Download, 
+import { toast } from '../components/ui/use-toast';
+import { adminAPI } from '../services/api';
+import {
+  Shield,
+  CheckCircle,
+  XCircle,
+  Clock,
+  User,
+  UserPlus,
+  Trash2,
+  Download,
   FileText,
   Eye,
   AlertCircle,
   UserCheck,
   Settings,
-  Activity
+  Activity,
+  Hash,
+  Leaf,
+  MapPin,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react';
 import { mockValidators } from '../mock';
 import Chip from '../components/Chip';
@@ -26,36 +36,106 @@ import Chip from '../components/Chip';
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('approvals');
   const [newInvite, setNewInvite] = useState({ email: '', role: '' });
+  const [approvals, setApprovals] = useState([]);
+  const [loadingApprovals, setLoadingApprovals] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+  const [rejectNotes, setRejectNotes] = useState({});
+  const [showRejectInput, setShowRejectInput] = useState(null);
 
-  const mockApprovals = [
-    {
-      id: 1,
-      type: 'MRV Report',
-      requester: 'Dr. Sarah Chen',
-      projectId: 'GOD-001',
-      age: '2 hours ago',
-      status: 'pending',
-      quorum: '2/3'
-    },
-    {
-      id: 2,
-      type: 'Credit Issuance',
-      requester: 'CoastalCare NGO',
-      projectId: 'TN-002',
-      age: '1 day ago',
-      status: 'pending',
-      quorum: '1/3'
-    },
-    {
-      id: 3,
-      type: 'Project Registration',
-      requester: 'Marine Foundation',
-      projectId: 'KL-003',
-      age: '3 days ago',
-      status: 'approved',
-      quorum: '3/3'
+  const loadApprovals = useCallback(async () => {
+    setLoadingApprovals(true);
+    try {
+      const data = await adminAPI.getPendingApprovals();
+      setApprovals(data.approvals || []);
+    } catch (error) {
+      console.error('Error loading approvals:', error);
+      // Fallback: show empty state
+      setApprovals([]);
+    } finally {
+      setLoadingApprovals(false);
     }
-  ];
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      loadApprovals();
+    }
+  }, [activeTab, loadApprovals]);
+
+  const handleApprove = async (projectId) => {
+    setProcessingId(projectId);
+    try {
+      await adminAPI.approveProject(projectId, 'Approved by admin');
+      toast({
+        title: "✅ Project Approved",
+        description: "Project has been approved and moved to monitoring phase."
+      });
+      loadApprovals();
+    } catch (error) {
+      console.error('Error approving project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve project. " + (error.response?.data?.detail || error.message),
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (projectId) => {
+    const notes = rejectNotes[projectId] || '';
+    if (!notes.trim()) {
+      toast({
+        title: "Notes Required",
+        description: "Please provide a reason for rejection.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setProcessingId(projectId);
+    try {
+      await adminAPI.rejectProject(projectId, notes);
+      toast({
+        title: "Project Returned",
+        description: "Project has been sent back to draft for revision."
+      });
+      setShowRejectInput(null);
+      setRejectNotes(prev => ({ ...prev, [projectId]: '' }));
+      loadApprovals();
+    } catch (error) {
+      console.error('Error rejecting project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reject project. " + (error.response?.data?.detail || error.message),
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Unknown';
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return date.toLocaleDateString();
+    } catch {
+      return 'Unknown';
+    }
+  };
 
   const mockRoles = [
     { id: 1, name: 'Dr. Sarah Chen', email: 's.chen@carbonvalidation.org', role: 'Validator', joinedAt: '2023-08-15' },
@@ -74,7 +154,6 @@ export default function Admin() {
 
   const sendInvitation = () => {
     if (newInvite.email && newInvite.role) {
-      // Mock invitation logic
       console.log('Invitation sent:', newInvite);
       setNewInvite({ email: '', role: '' });
     }
@@ -95,28 +174,33 @@ export default function Admin() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-white border border-[#E5EAF0] p-1 rounded-xl">
-          <TabsTrigger 
-            value="approvals" 
+          <TabsTrigger
+            value="approvals"
             className="data-[state=active]:bg-[#0A6BFF] data-[state=active]:text-white px-6 py-3 rounded-lg font-medium"
           >
             <Shield className="w-4 h-4 mr-2" />
             Approvals
+            {approvals.length > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                {approvals.length}
+              </span>
+            )}
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="validators"
             className="data-[state=active]:bg-[#0A6BFF] data-[state=active]:text-white px-6 py-3 rounded-lg font-medium"
           >
             <UserCheck className="w-4 h-4 mr-2" />
             Validators
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="roles"
             className="data-[state=active]:bg-[#0A6BFF] data-[state=active]:text-white px-6 py-3 rounded-lg font-medium"
           >
             <User className="w-4 h-4 mr-2" />
             Roles
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="audit"
             className="data-[state=active]:bg-[#0A6BFF] data-[state=active]:text-white px-6 py-3 rounded-lg font-medium"
           >
@@ -125,65 +209,278 @@ export default function Admin() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Approvals Tab */}
+        {/* ===== Approvals Tab ===== */}
         <TabsContent value="approvals" className="space-y-6">
-          <div className="grid gap-6">
-            {mockApprovals.map((approval) => (
-              <div key={approval.id} className="bg-white border border-[#E5EAF0] rounded-2xl p-6 hover:border-[#D9E2EC] transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-lg font-semibold text-[#0A0F1C]">
-                        {approval.type}
-                      </h3>
-                      <Chip 
-                        status={approval.status === 'pending' ? 'In Review' : 'Monitoring'}
-                        size="sm"
-                      >
-                        {approval.status}
-                      </Chip>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-[#475569]">
-                      <p><span className="font-medium">Requester:</span> {approval.requester}</p>
-                      <p><span className="font-medium">Project:</span> {approval.projectId}</p>
-                      <p><span className="font-medium">Submitted:</span> {approval.age}</p>
-                      <p><span className="font-medium">Quorum:</span> {approval.quorum}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-[#E5EAF0] hover:border-[#D9E2EC]"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Diff
-                      </Button>
-                    </div>
-                  </div>
-
-                  {approval.status === 'pending' && (
-                    <div className="flex gap-3 ml-6">
-                      <Button
-                        className="bg-[#10B981] hover:bg-[#10B981]/90 text-white px-4 py-2"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-[#EF4444] text-[#EF4444] hover:bg-[#FEF2F2] px-4 py-2"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Request Changes
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+          {/* Refresh Button */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-[#0A0F1C]">
+              Pending MRV Report Approvals
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadApprovals}
+              disabled={loadingApprovals}
+              className="border-[#E5EAF0] hover:border-[#D9E2EC]"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loadingApprovals ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
+
+          {/* Loading State */}
+          {loadingApprovals && (
+            <div className="bg-white border border-[#E5EAF0] rounded-2xl p-12 text-center">
+              <RefreshCw className="w-8 h-8 text-[#0A6BFF] animate-spin mx-auto mb-3" />
+              <p className="text-[#475569]">Loading pending approvals...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loadingApprovals && approvals.length === 0 && (
+            <div className="bg-white border border-[#E5EAF0] rounded-2xl p-12 text-center">
+              <CheckCircle className="w-12 h-12 text-[#10B981] mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-[#0A0F1C] mb-2">All caught up!</h3>
+              <p className="text-[#475569]">
+                No MRV reports are waiting for your approval. Reports submitted from the dMRV Studio will appear here.
+              </p>
+            </div>
+          )}
+
+          {/* Approval Cards */}
+          {!loadingApprovals && approvals.length > 0 && (
+            <div className="grid gap-6">
+              {approvals.map((item) => {
+                const project = item.project;
+                const report = item.mrv_report;
+                const validator = item.validator;
+                const isExpanded = expandedId === project.id;
+                const isProcessing = processingId === project.id;
+                const isRejectMode = showRejectInput === project.id;
+
+                return (
+                  <div
+                    key={project.id}
+                    className="bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden hover:border-[#D9E2EC] transition-all"
+                  >
+                    {/* Card Header */}
+                    <div className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="bg-amber-100 p-2 rounded-lg">
+                              <FileText className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-[#0A0F1C]">
+                                {project.title}
+                              </h3>
+                              <p className="text-sm text-[#475569]">MRV Report — Awaiting Approval</p>
+                            </div>
+                            <Chip status="In Review" size="sm">Pending</Chip>
+                          </div>
+
+                          {/* Quick Info Row */}
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-[#475569] mb-4">
+                            <span className="flex items-center gap-1">
+                              <Leaf className="w-3.5 h-3.5" />
+                              {project.ecosystem_type || 'Blue Carbon'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5" />
+                              {project.area_hectares || 0} ha
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              Submitted {formatDate(item.submitted_at)}
+                            </span>
+                            {validator && (
+                              <span className="flex items-center gap-1">
+                                <User className="w-3.5 h-3.5" />
+                                Validated by {validator.full_name}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Analysis Summary (always visible) */}
+                          {report?.analysis_data && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                              <div className="bg-[#F0FDF4] rounded-xl p-3">
+                                <p className="text-xs text-[#65728A] mb-1">CO₂ Absorbed</p>
+                                <p className="text-lg font-bold text-[#10B981]">
+                                  {report.analysis_data.co2?.toFixed(1) || 0}
+                                  <span className="text-xs font-normal ml-1">tCO2e</span>
+                                </p>
+                              </div>
+                              <div className="bg-[#EFF6FF] rounded-xl p-3">
+                                <p className="text-xs text-[#65728A] mb-1">Area Change</p>
+                                <p className="text-lg font-bold text-[#0A6BFF]">
+                                  +{report.analysis_data.areaChange?.toFixed(1) || 0}
+                                  <span className="text-xs font-normal ml-1">ha</span>
+                                </p>
+                              </div>
+                              <div className="bg-[#FFF7ED] rounded-xl p-3">
+                                <p className="text-xs text-[#65728A] mb-1">Biomass</p>
+                                <p className="text-lg font-bold text-[#F59E0B]">
+                                  +{report.analysis_data.biomass?.toFixed(1) || 0}
+                                  <span className="text-xs font-normal ml-1">%</span>
+                                </p>
+                              </div>
+                              <div className="bg-[#F5F3FF] rounded-xl p-3">
+                                <p className="text-xs text-[#65728A] mb-1">Confidence</p>
+                                <p className="text-lg font-bold text-[#7C3AED]">
+                                  {((report.analysis_data.confidence || 0) * 100).toFixed(0)}%
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Expand/Collapse */}
+                          <button
+                            onClick={() => setExpandedId(isExpanded ? null : project.id)}
+                            className="flex items-center gap-1 text-sm text-[#0A6BFF] hover:underline"
+                          >
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            {isExpanded ? 'Hide Details' : 'View Full Report'}
+                          </button>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-2 ml-6">
+                          <Button
+                            className="bg-[#10B981] hover:bg-[#10B981]/90 text-white px-5"
+                            onClick={() => handleApprove(project.id)}
+                            disabled={isProcessing}
+                          >
+                            {isProcessing ? (
+                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                            )}
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="border-[#EF4444] text-[#EF4444] hover:bg-[#FEF2F2] px-5"
+                            onClick={() => setShowRejectInput(isRejectMode ? null : project.id)}
+                            disabled={isProcessing}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Reject Notes Input */}
+                      {isRejectMode && (
+                        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                          <Label className="text-sm font-medium text-red-800 mb-2 block">
+                            Rejection Reason (required)
+                          </Label>
+                          <Textarea
+                            placeholder="Explain why this report needs revision..."
+                            value={rejectNotes[project.id] || ''}
+                            onChange={(e) => setRejectNotes(prev => ({ ...prev, [project.id]: e.target.value }))}
+                            className="border-red-200 mb-3"
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-[#EF4444] hover:bg-[#DC2626] text-white"
+                              onClick={() => handleReject(project.id)}
+                              disabled={isProcessing}
+                            >
+                              Confirm Rejection
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowRejectInput(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expanded Details */}
+                    {isExpanded && report && (
+                      <div className="border-t border-[#E5EAF0] bg-[#F7F8FA] p-6 space-y-4">
+                        {/* MRV Hash */}
+                        <div className="flex items-center gap-3">
+                          <Hash className="w-4 h-4 text-[#0A6BFF]" />
+                          <span className="text-sm font-medium text-[#0A0F1C]">MRV Hash:</span>
+                          <code className="text-xs bg-white border border-[#E5EAF0] px-3 py-1.5 rounded-lg font-mono text-[#475569] break-all flex-1">
+                            {report.mrv_hash || 'Not generated'}
+                          </code>
+                        </div>
+
+                        {/* Blockchain Status */}
+                        <div className="flex items-center gap-3">
+                          <Shield className="w-4 h-4 text-[#7C3AED]" />
+                          <span className="text-sm font-medium text-[#0A0F1C]">Blockchain:</span>
+                          <Chip size="sm" status={
+                            report.blockchain_status === 'confirmed' ? 'Monitoring' :
+                              report.blockchain_status === 'pending' ? 'In Review' : 'Draft'
+                          }>
+                            {report.blockchain_status || 'Unknown'}
+                          </Chip>
+                          {report.blockchain_tx_hash && (
+                            <a
+                              href={report.blockchain_explorer_url || `https://mumbai.polygonscan.com/tx/${report.blockchain_tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-[#0A6BFF] hover:underline flex items-center gap-1"
+                            >
+                              View on PolygonScan <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+
+                        {/* Validation Notes */}
+                        {report.analysis_data?.validationNotes && (
+                          <div>
+                            <span className="text-sm font-medium text-[#0A0F1C] block mb-1">Validator Notes:</span>
+                            <p className="text-sm text-[#475569] bg-white border border-[#E5EAF0] rounded-lg p-3">
+                              {report.analysis_data.validationNotes}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Detailed Metrics */}
+                        {report.analysis_data && (
+                          <div>
+                            <span className="text-sm font-medium text-[#0A0F1C] block mb-2">Full Analysis Data:</span>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="bg-white border border-[#E5EAF0] rounded-lg p-3">
+                                <p className="text-xs text-[#65728A]">NDVI Change</p>
+                                <p className="font-semibold text-[#0A0F1C]">{report.analysis_data.ndvi || 0}</p>
+                              </div>
+                              <div className="bg-white border border-[#E5EAF0] rounded-lg p-3">
+                                <p className="text-xs text-[#65728A]">Carbon Stock</p>
+                                <p className="font-semibold text-[#0A0F1C]">{report.analysis_data.carbonStock || 0} tC</p>
+                              </div>
+                              <div className="bg-white border border-[#E5EAF0] rounded-lg p-3">
+                                <p className="text-xs text-[#65728A]">Baseline Date</p>
+                                <p className="font-semibold text-[#0A0F1C]">{report.analysis_data.baseline_date || '—'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Report Created */}
+                        <div className="text-xs text-[#65728A]">
+                          Report ID: {report.id} • Created: {report.created_at ? new Date(report.created_at).toLocaleString() : 'Unknown'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* Validators Tab */}
@@ -192,15 +489,15 @@ export default function Admin() {
             {mockValidators.map((validator) => (
               <div key={validator.id} className="bg-white border border-[#E5EAF0] rounded-2xl p-6 hover:border-[#D9E2EC] transition-colors">
                 <div className="flex items-start gap-4">
-                  <img 
-                    src={validator.avatar} 
+                  <img
+                    src={validator.avatar}
                     alt={validator.name}
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-[#0A0F1C]">{validator.name}</h3>
-                      <Chip 
+                      <Chip
                         status={validator.availability === 'Available' ? 'Monitoring' : 'In Review'}
                         size="sm"
                       >
@@ -208,7 +505,7 @@ export default function Admin() {
                       </Chip>
                     </div>
                     <p className="text-sm text-[#475569] mb-3">{validator.email}</p>
-                    
+
                     <div className="flex flex-wrap gap-1">
                       {validator.skills.map((skill, index) => (
                         <Chip key={index} size="sm" variant="outline">
@@ -255,7 +552,7 @@ export default function Admin() {
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button 
+                <Button
                   onClick={sendInvitation}
                   className="w-full bg-[#0A6BFF] hover:bg-[#0A6BFF]/90 text-white"
                 >
@@ -306,16 +603,16 @@ export default function Admin() {
             <div className="p-6 border-b border-[#E5EAF0] flex items-center justify-between">
               <h3 className="text-lg font-semibold text-[#0A0F1C]">System Activity Log</h3>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="border-[#E5EAF0] hover:border-[#D9E2EC]"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export CSV
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="border-[#E5EAF0] hover:border-[#D9E2EC]"
                 >
@@ -324,7 +621,7 @@ export default function Admin() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-[#F7F8FA] border-b border-[#E5EAF0]">

@@ -1008,7 +1008,141 @@ async def generate_mrv_report(
     if blockchain_result:
         response["blockchain"] = blockchain_result
     
+    # Set project status to in_review (awaiting admin approval)
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": {
+            "status": ProjectStatus.IN_REVIEW,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
     return response
+
+# ===== Admin Approval Endpoints =====
+
+@api_router.get("/admin/pending-approvals")
+async def get_pending_approvals(
+    current_user: User = Depends(require_role([UserRole.ADMIN]))
+):
+    """Get all projects awaiting admin approval (status=in_review) with their MRV reports"""
+    projects = await db.projects.find({"status": ProjectStatus.IN_REVIEW}).to_list(100)
+    
+    approvals = []
+    for project_dict in projects:
+        project_dict.pop("_id", None)
+        
+        # Find the latest MRV report for this project
+        mrv_report = await db.mrv_reports.find_one(
+            {"project_id": project_dict["id"]},
+            sort=[("created_at", -1)]
+        )
+        
+        # Get validator info
+        validator = None
+        if mrv_report and mrv_report.get("validator_id"):
+            validator_dict = await db.users.find_one({"id": mrv_report["validator_id"]})
+            if validator_dict:
+                validator = {
+                    "id": validator_dict["id"],
+                    "full_name": validator_dict.get("full_name", "Unknown"),
+                    "email": validator_dict.get("email", "")
+                }
+        
+        approval_entry = {
+            "project": project_dict,
+            "mrv_report": None,
+            "validator": validator,
+            "submitted_at": project_dict.get("updated_at", project_dict.get("created_at"))
+        }
+        
+        if mrv_report:
+            mrv_report.pop("_id", None)
+            # Convert datetime objects to strings for JSON serialization
+            if isinstance(mrv_report.get("created_at"), datetime):
+                mrv_report["created_at"] = mrv_report["created_at"].isoformat()
+            approval_entry["mrv_report"] = mrv_report
+        
+        approvals.append(approval_entry)
+    
+    return {"approvals": approvals, "count": len(approvals)}
+
+
+@api_router.post("/admin/projects/{project_id}/approve")
+async def admin_approve_project(
+    project_id: str,
+    body: Dict[str, Any] = {},
+    current_user: User = Depends(require_role([UserRole.ADMIN]))
+):
+    """Admin final approval — moves project to monitoring status"""
+    project_dict = await db.projects.find_one({"id": project_id})
+    if not project_dict:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project_dict.get("status") != ProjectStatus.IN_REVIEW:
+        raise HTTPException(status_code=400, detail="Project is not pending approval")
+    
+    # Update project status to monitoring (fully approved)
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": {
+            "status": ProjectStatus.MONITORING,
+            "admin_approved_by": current_user.id,
+            "admin_approved_at": datetime.now(timezone.utc),
+            "admin_notes": body.get("notes", ""),
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Update MRV report status
+    await db.mrv_reports.update_one(
+        {"project_id": project_id},
+        {"$set": {"admin_status": "approved", "admin_id": current_user.id}},
+    )
+    
+    logger.info(f"✅ Admin {current_user.username} approved project {project_id}")
+    
+    updated = await db.projects.find_one({"id": project_id})
+    updated.pop("_id", None)
+    return {"message": "Project approved and moved to monitoring", "project": updated}
+
+
+@api_router.post("/admin/projects/{project_id}/reject")
+async def admin_reject_project(
+    project_id: str,
+    body: Dict[str, Any] = {},
+    current_user: User = Depends(require_role([UserRole.ADMIN]))
+):
+    """Admin rejection — sends project back to draft for revision"""
+    project_dict = await db.projects.find_one({"id": project_id})
+    if not project_dict:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project_dict.get("status") != ProjectStatus.IN_REVIEW:
+        raise HTTPException(status_code=400, detail="Project is not pending approval")
+    
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$set": {
+            "status": ProjectStatus.DRAFT,
+            "admin_rejected_by": current_user.id,
+            "admin_rejected_at": datetime.now(timezone.utc),
+            "admin_rejection_notes": body.get("notes", "No reason specified"),
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Update MRV report status
+    await db.mrv_reports.update_one(
+        {"project_id": project_id},
+        {"$set": {"admin_status": "rejected", "admin_notes": body.get("notes", "")}},
+    )
+    
+    logger.info(f"❌ Admin {current_user.username} rejected project {project_id}")
+    
+    updated = await db.projects.find_one({"id": project_id})
+    updated.pop("_id", None)
+    return {"message": "Project rejected and returned to draft", "project": updated}
 
 # Blockchain integration endpoints (mock implementation)
 @api_router.post("/projects/{project_id}/register-blockchain")

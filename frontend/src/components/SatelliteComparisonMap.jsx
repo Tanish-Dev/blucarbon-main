@@ -13,18 +13,19 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-export default function SatelliteComparisonMap({ 
-  coordinates, 
-  polygon, 
+export default function SatelliteComparisonMap({
+  coordinates,
+  polygon,
   activeLayers = {},
   projectId = null,
-  className = "" 
+  className = ""
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const layersRef = useRef({});
   const polygonLayerRef = useRef(null);
   const markerRef = useRef(null);
+  const mountedRef = useRef(true);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [realImagery, setRealImagery] = useState(null);
@@ -32,179 +33,211 @@ export default function SatelliteComparisonMap({
   const [imageryError, setImageryError] = useState(null);
 
   // Default center coordinates (India coast)
-  const defaultCenter = coordinates?.lng && coordinates?.lat 
-    ? [coordinates.lat, coordinates.lng] 
+  const defaultCenter = coordinates?.lng && coordinates?.lat
+    ? [coordinates.lat, coordinates.lng]
     : [16.3, 81.8];
+
+  // Stabilize dependencies to prevent unnecessary re-renders
+  const coordsKey = coordinates ? `${coordinates.lat},${coordinates.lng}` : 'none';
+  const polygonKey = polygon ? JSON.stringify(polygon) : 'none';
+
+  // Track mounted state
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Initialize Leaflet map
-    const map = L.map(mapContainerRef.current, {
-      center: defaultCenter,
-      zoom: 12,
-      zoomControl: true,
-      fullscreenControl: true,
-      fullscreenControlOptions: {
-        position: 'topright'
-      },
-      layers: []
-    });
-
-    mapRef.current = map;
-
-    // Listen for fullscreen changes
-    map.on('enterFullscreen', () => setIsFullscreen(true));
-    map.on('exitFullscreen', () => setIsFullscreen(false));
-
-    // Add zoom control
-    L.control.zoom({ position: 'topright' }).addTo(map);
-
-    // Add scale control
-    L.control.scale({ position: 'bottomleft', metric: true, imperial: false }).addTo(map);
-
-    // Define tile layers - Multiple free satellite sources
-    const tileLayers = {
-      // Esri World Imagery (Free, no token needed) - Always visible base
-      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri, Maxar, Earthstar Geographics',
-        maxZoom: 19
-      }),
-
-      // OpenStreetMap for reference
-      osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
-        opacity: 0
-      }),
-
-      // USGS Satellite (Free, no token)
-      usgs: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'USGS',
-        maxZoom: 16,
-        opacity: 0
-      }),
-
-      // Baseline layer - Using Esri World Imagery with green tint overlay
-      baseline: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Baseline: Sentinel-2 (simulated)',
-        maxZoom: 19,
-        opacity: 0.5,
-        className: 'baseline-layer'
-      }),
-
-      // Monitoring layer - Using slightly different satellite source for visual distinction
-      monitoring: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-        attribution: 'Monitoring: Google Satellite (simulated as Sentinel-2)',
-        maxZoom: 20,
-        opacity: 0.5,
-        className: 'monitoring-layer'
-      })
-    };
-
-    // Add base satellite layer (always visible)
-    tileLayers.satellite.addTo(map);
-    
-    // Add baseline and monitoring layers (controlled by toggles)
-    tileLayers.baseline.addTo(map);
-    tileLayers.monitoring.addTo(map);
-
-    layersRef.current = tileLayers;
-
-    // Add marker if coordinates provided
-    if (coordinates?.lng && coordinates?.lat) {
-      const marker = L.marker([coordinates.lat, coordinates.lng], {
-        icon: L.divIcon({
-          className: 'custom-marker',
-          html: '<div style="background: #0A6BFF; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        })
-      }).addTo(map);
-      
-      markerRef.current = marker;
+    // Clean up any existing map instance first
+    if (mapRef.current) {
+      try {
+        mapRef.current.off();
+        mapRef.current.remove();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      mapRef.current = null;
     }
 
-    // Add polygon if provided
-    if (polygon && polygon.length > 0) {
-      const polygonCoords = polygon.map(point => [
-        point.lat || point[1] || point.latitude,
-        point.lng || point[0] || point.longitude
-      ]).filter(coord => coord[0] && coord[1]);
+    // Small delay to ensure DOM is ready after cleanup
+    const initTimer = setTimeout(() => {
+      if (!mountedRef.current || !mapContainerRef.current) return;
 
-      if (polygonCoords.length > 0) {
-        const polygonLayer = L.polygon(polygonCoords, {
-          color: '#0A6BFF',
-          weight: 3,
-          fillColor: '#0A6BFF',
-          fillOpacity: 0.2
+      // Initialize Leaflet map — zoomControl: false because we add it manually below
+      const map = L.map(mapContainerRef.current, {
+        center: defaultCenter,
+        zoom: 12,
+        zoomControl: false,
+        fullscreenControl: true,
+        fullscreenControlOptions: {
+          position: 'topright'
+        },
+        layers: []
+      });
+
+      mapRef.current = map;
+
+      // Listen for fullscreen changes
+      map.on('enterFullscreen', () => { if (mountedRef.current) setIsFullscreen(true); });
+      map.on('exitFullscreen', () => { if (mountedRef.current) setIsFullscreen(false); });
+
+      // Add single zoom control
+      L.control.zoom({ position: 'topright' }).addTo(map);
+
+      // Add scale control
+      L.control.scale({ position: 'bottomleft', metric: true, imperial: false }).addTo(map);
+
+      // Define tile layers - Multiple free satellite sources
+      const tileLayers = {
+        // Esri World Imagery (Free, no token needed) - Always visible base
+        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Esri, Maxar, Earthstar Geographics',
+          maxZoom: 19
+        }),
+
+        // OpenStreetMap for reference
+        osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19,
+          opacity: 0
+        }),
+
+        // USGS Satellite (Free, no token)
+        usgs: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'USGS',
+          maxZoom: 16,
+          opacity: 0
+        }),
+
+        // Baseline layer - Using Esri World Imagery with green tint overlay
+        baseline: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Baseline: Sentinel-2 (simulated)',
+          maxZoom: 19,
+          opacity: 0.5,
+          className: 'baseline-layer'
+        }),
+
+        // Monitoring layer - Using slightly different satellite source for visual distinction
+        monitoring: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+          attribution: 'Monitoring: Google Satellite (simulated as Sentinel-2)',
+          maxZoom: 20,
+          opacity: 0.5,
+          className: 'monitoring-layer'
+        })
+      };
+
+      // Add base satellite layer (always visible)
+      tileLayers.satellite.addTo(map);
+
+      // Add baseline and monitoring layers (controlled by toggles)
+      tileLayers.baseline.addTo(map);
+      tileLayers.monitoring.addTo(map);
+
+      layersRef.current = tileLayers;
+
+      // Add marker if coordinates provided
+      if (coordinates?.lng && coordinates?.lat) {
+        const marker = L.marker([coordinates.lat, coordinates.lng], {
+          icon: L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #0A6BFF; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+          })
         }).addTo(map);
 
-        polygonLayerRef.current = polygonLayer;
-
-        // Fit bounds to polygon
-        map.fitBounds(polygonLayer.getBounds(), { padding: [50, 50] });
+        markerRef.current = marker;
       }
-    }
 
-    // Add NDVI overlay layer (simulated with green tint)
-    const ndviLayer = L.tileLayer.wms('https://ows.mundialis.de/services/service?', {
-      layers: 'TOPO-WMS',
-      format: 'image/png',
-      transparent: true,
-      opacity: 0,
-      attribution: 'NDVI (simulated)'
-    });
-    ndviLayer.addTo(map);
-    layersRef.current.ndvi = ndviLayer;
+      // Add polygon if provided
+      if (polygon && polygon.length > 0) {
+        const polygonCoords = polygon.map(point => [
+          point.lat || point[1] || point.latitude,
+          point.lng || point[0] || point.longitude
+        ]).filter(coord => coord[0] && coord[1]);
 
-    // Add change detection overlay
-    const changeLayer = L.layerGroup();
-    changeLayer.addTo(map);
-    layersRef.current.delta = changeLayer;
+        if (polygonCoords.length > 0) {
+          const polygonLayer = L.polygon(polygonCoords, {
+            color: '#0A6BFF',
+            weight: 3,
+            fillColor: '#0A6BFF',
+            fillOpacity: 0.2
+          }).addTo(map);
 
-    setMapLoaded(true);
+          polygonLayerRef.current = polygonLayer;
+
+          // Fit bounds to polygon
+          map.fitBounds(polygonLayer.getBounds(), { padding: [50, 50] });
+        }
+      }
+
+      // Add NDVI overlay layer (simulated with green tint)
+      const ndviLayer = L.tileLayer.wms('https://ows.mundialis.de/services/service?', {
+        layers: 'TOPO-WMS',
+        format: 'image/png',
+        transparent: true,
+        opacity: 0,
+        attribution: 'NDVI (simulated)'
+      });
+      ndviLayer.addTo(map);
+      layersRef.current.ndvi = ndviLayer;
+
+      // Add change detection overlay
+      const changeLayer = L.layerGroup();
+      changeLayer.addTo(map);
+      layersRef.current.delta = changeLayer;
+
+      if (mountedRef.current) setMapLoaded(true);
+    }, 50);
 
     // Cleanup
     return () => {
+      clearTimeout(initTimer);
       if (mapRef.current) {
-        mapRef.current.remove();
+        try {
+          mapRef.current.off();
+          mapRef.current.remove();
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
         mapRef.current = null;
       }
     };
-  }, [coordinates, polygon]);
+  }, [coordsKey, polygonKey]);
 
   // Load real Sentinel Hub imagery
   useEffect(() => {
     const loadRealImagery = async () => {
       console.log('🛰️ Sentinel Hub Load Check:', { projectId, hasPolygon: polygon?.length > 0, mapLoaded });
-      
+
       if (!projectId || !polygon || polygon.length === 0) {
         console.log('⚠️ Skipping Sentinel Hub load - missing projectId or polygon');
         return;
       }
-      
+
       console.log('🚀 Loading Sentinel Hub imagery for project:', projectId);
       setLoadingImagery(true);
       setImageryError(null);
-      
+
       try {
         console.log('📡 Fetching imagery from backend...');
         const imageryData = await sentinelHubService.getProjectImagery(projectId);
         console.log('✅ Imagery data received:', imageryData);
-        
+
         const processedData = sentinelHubService.processImageryData(imageryData);
         console.log('🔄 Processed data:', processedData);
-        
+
         if (processedData) {
           setRealImagery(processedData);
           console.log('✨ Real imagery state updated!');
-          
+
           // Calculate bounds from polygon
           if (mapRef.current && polygonLayerRef.current) {
             const bounds = polygonLayerRef.current.getBounds();
             console.log('📍 Polygon bounds:', bounds);
-            
+
             // Create image overlays for baseline RGB
             if (processedData.baseline.rgb) {
               console.log('🖼️ Adding baseline RGB overlay');
@@ -216,7 +249,7 @@ export default function SatelliteComparisonMap({
               baselineRgbOverlay.addTo(mapRef.current);
               layersRef.current.baseline_rgb = baselineRgbOverlay;
             }
-            
+
             // Create image overlays for baseline NDVI
             if (processedData.baseline.ndvi) {
               console.log('🖼️ Adding baseline NDVI overlay');
@@ -228,7 +261,7 @@ export default function SatelliteComparisonMap({
               baselineNdviOverlay.addTo(mapRef.current);
               layersRef.current.baseline_ndvi = baselineNdviOverlay;
             }
-            
+
             // Create image overlays for monitoring RGB
             if (processedData.monitoring.rgb) {
               console.log('🖼️ Adding monitoring RGB overlay');
@@ -240,7 +273,7 @@ export default function SatelliteComparisonMap({
               monitoringRgbOverlay.addTo(mapRef.current);
               layersRef.current.monitoring_rgb = monitoringRgbOverlay;
             }
-            
+
             // Create image overlays for monitoring NDVI
             if (processedData.monitoring.ndvi) {
               console.log('🖼️ Adding monitoring NDVI overlay');
@@ -255,13 +288,17 @@ export default function SatelliteComparisonMap({
           }
         }
       } catch (error) {
-        console.error('❌ Error loading Sentinel Hub imagery:', error);
-        setImageryError(error.message || 'Failed to load satellite imagery');
+        console.log('ℹ️ Sentinel Hub imagery not available (this is normal in demo mode):', error.message);
+        // Don't show error for auth issues — just silently fall back to demo mode
+        // Only show error for unexpected failures
+        if (error.response?.status !== 401 && !error.message?.includes('401')) {
+          setImageryError(error.message || 'Failed to load satellite imagery');
+        }
       } finally {
         setLoadingImagery(false);
       }
     };
-    
+
     loadRealImagery();
   }, [projectId, polygon, mapLoaded]);
 
@@ -274,7 +311,7 @@ export default function SatelliteComparisonMap({
     // Toggle baseline layer (use real imagery if available, fallback to simulated)
     if (activeLayers.baseline !== undefined) {
       const opacity = activeLayers.baseline.visible ? 0.7 : 0;
-      
+
       // Prefer real Sentinel-2 RGB imagery
       if (layers.baseline_rgb && realImagery) {
         layers.baseline_rgb.setOpacity(opacity);
@@ -289,7 +326,7 @@ export default function SatelliteComparisonMap({
     // Toggle monitoring layer (use real imagery if available, fallback to simulated)
     if (activeLayers.monitoring !== undefined) {
       const opacity = activeLayers.monitoring.visible ? 0.7 : 0;
-      
+
       // Prefer real Sentinel-2 RGB imagery
       if (layers.monitoring_rgb && realImagery) {
         layers.monitoring_rgb.setOpacity(opacity);
@@ -304,7 +341,7 @@ export default function SatelliteComparisonMap({
     // Toggle NDVI layer (use real if available)
     if (activeLayers.ndvi !== undefined) {
       const opacity = activeLayers.ndvi.visible ? 0.7 : 0;
-      
+
       // Show either baseline or monitoring NDVI (prefer monitoring)
       if (realImagery && layers.monitoring_ndvi) {
         layers.monitoring_ndvi.setOpacity(opacity);
@@ -323,45 +360,17 @@ export default function SatelliteComparisonMap({
       layers.ndvi.setOpacity(opacity);
     }
 
-    // Toggle delta/change layer - add visual indicators
+    // Toggle delta/change layer
     if (activeLayers.delta !== undefined && layers.delta) {
       layers.delta.clearLayers();
-      
-      if (activeLayers.delta.visible && polygon && polygon.length > 0) {
-        // Add some random change detection markers for visualization
-        const bounds = polygonLayerRef.current?.getBounds();
-        if (bounds) {
-          const centerLat = bounds.getCenter().lat;
-          const centerLng = bounds.getCenter().lng;
-          
-          // Simulate vegetation gain areas
-          const gainMarker = L.circle([centerLat + 0.002, centerLng + 0.002], {
-            color: '#10B981',
-            fillColor: '#10B981',
-            fillOpacity: 0.5,
-            radius: 100,
-            weight: 2
-          });
-          layers.delta.addLayer(gainMarker);
-          
-          // Simulate stable area
-          const stableMarker = L.circle([centerLat - 0.002, centerLng - 0.002], {
-            color: '#F59E0B',
-            fillColor: '#F59E0B',
-            fillOpacity: 0.4,
-            radius: 80,
-            weight: 2
-          });
-          layers.delta.addLayer(stableMarker);
-        }
-      }
+      // Change detection overlays will be added when real Sentinel data is available
     }
 
   }, [activeLayers, mapLoaded, polygon]);
 
   const toggleFullscreen = () => {
     if (!mapContainerRef.current) return;
-    
+
     if (!document.fullscreenElement) {
       mapContainerRef.current.requestFullscreen().then(() => {
         setIsFullscreen(true);
@@ -390,7 +399,7 @@ export default function SatelliteComparisonMap({
   return (
     <div className={`relative h-full w-full ${className}`}>
       <div ref={mapContainerRef} className="h-full w-full rounded-lg" />
-      
+
       {/* Fullscreen Toggle Button */}
       <button
         onClick={toggleFullscreen}
@@ -407,7 +416,7 @@ export default function SatelliteComparisonMap({
           </svg>
         )}
       </button>
-      
+
       {/* Layer info overlay */}
       <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-lg max-w-xs border border-gray-200">
         <div className="text-xs space-y-2">
@@ -423,7 +432,7 @@ export default function SatelliteComparisonMap({
           </div>
           {activeLayers.baseline?.visible && (
             <div className="flex items-center gap-2 pl-1">
-              <div className="w-3 h-3 rounded shadow-sm" style={{background: 'linear-gradient(135deg, #86efac 0%, #22c55e 100%)'}}></div>
+              <div className="w-3 h-3 rounded shadow-sm" style={{ background: 'linear-gradient(135deg, #86efac 0%, #22c55e 100%)' }}></div>
               <span className="text-[#475569]">
                 <span className="font-medium text-green-700">Baseline</span> ({activeLayers.baseline.date})
               </span>
@@ -431,7 +440,7 @@ export default function SatelliteComparisonMap({
           )}
           {activeLayers.monitoring?.visible && (
             <div className="flex items-center gap-2 pl-1">
-              <div className="w-3 h-3 rounded shadow-sm" style={{background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)'}}></div>
+              <div className="w-3 h-3 rounded shadow-sm" style={{ background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)' }}></div>
               <span className="text-[#475569]">
                 <span className="font-medium text-blue-700">Monitoring</span> ({activeLayers.monitoring.date})
               </span>

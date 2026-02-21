@@ -1,0 +1,20 @@
+{
+    "name": "blucarbon-blockchain",
+    "version": "1.0.0",
+    "description": "BluCarbon smart contracts for Polygon Mumbai Testnet",
+    "scripts": {
+        "compile": "npx hardhat compile",
+        "deploy:mumbai": "npx hardhat run scripts/deploy.js --network mumbai",
+        "deploy:amoy": "npx hardhat run scripts/deploy.js --network amoy",
+        "deploy:local": "npx hardhat run scripts/deploy.js --network localhost",
+        "node": "npx hardhat node",
+        "copy-abi": "node scripts/copy-abi.js",
+        "setup": "npm run compile && npm run copy-abi"
+    },
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        "@openzeppelin/contracts": "^4.9.6",
+        "dotenv": "^16.6.1",
+        "hardhat": "^2.28.6"
+    }
+}

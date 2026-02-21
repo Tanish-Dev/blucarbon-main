@@ -5,15 +5,15 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { projectsAPI, validationAPI } from '../services/api';
 import { toast } from '../components/ui/use-toast';
-import { 
-  Layers, 
-  Map, 
-  BarChart3, 
-  Upload, 
-  FileText, 
-  Eye, 
-  Download, 
-  Hash, 
+import {
+  Layers,
+  Map,
+  BarChart3,
+  Upload,
+  FileText,
+  Eye,
+  Download,
+  Hash,
   Send,
   Satellite,
   Plane,
@@ -46,7 +46,7 @@ export default function DMRVStudio() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(''); // Show all projects by default
-  
+
   const [layers, setLayers] = useState({
     baseline: { visible: true, source: 'Sentinel-2', date: '2023-01-15' },
     monitoring: { visible: true, source: 'Sentinel-2', date: '2024-01-15' },
@@ -107,31 +107,62 @@ export default function DMRVStudio() {
     runAnalysis(project);
   };
 
+  // Deterministic hash from string — same input always produces same output
+  const deterministicSeed = (str) => {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      hash = hash & hash; // Convert to 32-bit int
+    }
+    return Math.abs(hash);
+  };
+
+  // Seeded pseudo-random: deterministic float between 0 and 1
+  const seededRandom = (seed, offset = 0) => {
+    const x = Math.sin(seed + offset) * 10000;
+    return x - Math.floor(x);
+  };
+
+  // Ecosystem carbon sequestration multipliers (tCO2/ha/year approx)
+  const ecosystemMultipliers = {
+    'Mangrove': { carbon: 1.0, biomass: 1.0, ndvi: 1.0 },
+    'Seagrass': { carbon: 0.6, biomass: 0.7, ndvi: 0.8 },
+    'Salt Marsh': { carbon: 0.5, biomass: 0.65, ndvi: 0.75 },
+    'Coral Reef': { carbon: 0.3, biomass: 0.5, ndvi: 0.6 },
+  };
+
   const runAnalysis = async (project) => {
     setAnalyzing(true);
-    
+
     // Simulate analysis with delay
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Simulate analysis calculations
+
+    // Deterministic seed from project ID
+    const projectId = project.id || project._id || project.title || 'unknown';
+    const seed = deterministicSeed(projectId);
+    const eco = project.ecosystem_type || 'Mangrove';
+    const mult = ecosystemMultipliers[eco] || ecosystemMultipliers['Mangrove'];
     const baseArea = project.area_hectares || 100;
-    const areaChange = Math.random() * 15 + 5; // 5-20 ha increase
-    const biomassIncrease = Math.random() * 10 + 5; // 5-15% increase
-    const co2Absorbed = areaChange * 3.67 * (biomassIncrease / 100) * baseArea; // Simplified calculation
-    const ndviChange = (Math.random() * 0.3 + 0.1).toFixed(3); // 0.1-0.4 NDVI increase
-    const carbonStock = (baseArea * (Math.random() * 50 + 100)).toFixed(2); // 100-150 tC/ha
-    
+
+    // Deterministic values scaled by ecosystem type and area
+    const areaChange = parseFloat(((seededRandom(seed, 1) * 12 + 3) * mult.carbon * (baseArea / 100)).toFixed(2));
+    const biomassIncrease = parseFloat(((seededRandom(seed, 2) * 8 + 4) * mult.biomass).toFixed(2));
+    const co2Absorbed = parseFloat((areaChange * 3.67 * (biomassIncrease / 100) * baseArea * mult.carbon).toFixed(2));
+    const ndviChange = parseFloat(((seededRandom(seed, 3) * 0.25 + 0.1) * mult.ndvi).toFixed(3));
+    const carbonStock = parseFloat((baseArea * (seededRandom(seed, 4) * 40 + 100) * mult.carbon).toFixed(2));
+    const confidence = parseFloat((seededRandom(seed, 5) * 0.15 + 0.78).toFixed(2));
+
     setAnalysis({
-      biomass: parseFloat(biomassIncrease.toFixed(2)),
-      co2: parseFloat(co2Absorbed.toFixed(2)),
-      areaChange: parseFloat(areaChange.toFixed(2)),
-      confidence: parseFloat((Math.random() * 0.2 + 0.7).toFixed(2)), // 0.7-0.9
-      ndvi: parseFloat(ndviChange),
-      carbonStock: parseFloat(carbonStock)
+      biomass: biomassIncrease,
+      co2: co2Absorbed,
+      areaChange,
+      confidence,
+      ndvi: ndviChange,
+      carbonStock
     });
-    
+
     setAnalyzing(false);
-    
+
     toast({
       title: "Analysis Complete",
       description: "Satellite imagery analysis finished successfully"
@@ -147,17 +178,19 @@ export default function DMRVStudio() {
 
   const handleValidation = async (approve) => {
     if (!selectedProject) return;
-    
+
     try {
-      const newStatus = approve ? 'monitoring' : 'rejected';
-      
+      // Approved → in_review (goes to Admin for final approval)
+      // Rejected → rejected
+      const newStatus = approve ? 'in_review' : 'rejected';
+
       // If approving, generate MRV report and store on blockchain
       if (approve && analysis.co2) {
         toast({
           title: "Generating MRV Report",
           description: "Creating report and storing hash on blockchain...",
         });
-        
+
         try {
           // Generate MRV report with blockchain storage
           const mrvResult = await validationAPI.generateMRVReport(
@@ -174,9 +207,9 @@ export default function DMRVStudio() {
               monitoring_date: layers.monitoring.date
             }
           );
-          
+
           console.log('✅ MRV Report generated:', mrvResult);
-          
+
           // Show blockchain success message
           if (mrvResult.blockchain && mrvResult.blockchain.transaction_hash) {
             toast({
@@ -188,9 +221,9 @@ export default function DMRVStudio() {
                     TX: {mrvResult.blockchain.transaction_hash.slice(0, 20)}...
                   </p>
                   {mrvResult.blockchain.explorer_url && (
-                    <a 
-                      href={mrvResult.blockchain.explorer_url} 
-                      target="_blank" 
+                    <a
+                      href={mrvResult.blockchain.explorer_url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 underline text-xs block mt-1"
                     >
@@ -216,20 +249,20 @@ export default function DMRVStudio() {
           });
         }
       }
-      
+
       // Update project status
       await projectsAPI.update(selectedProject.id, {
         ...selectedProject,
         status: newStatus
       });
-      
+
       toast({
-        title: approve ? "Project Approved" : "Project Rejected",
-        description: approve 
-          ? "The project has been approved and moved to monitoring phase"
+        title: approve ? "Report Published" : "Project Rejected",
+        description: approve
+          ? "MRV report submitted — awaiting admin final approval"
           : "The project has been rejected with your notes",
       });
-      
+
       // Return to queue
       setView('queue');
       setSelectedProject(null);
@@ -246,7 +279,7 @@ export default function DMRVStudio() {
 
   const generateMRVHash = () => {
     if (!selectedProject || !analysis.co2) return null;
-    
+
     const dataString = JSON.stringify({
       projectId: selectedProject.id,
       timestamp: new Date().toISOString(),
@@ -255,7 +288,7 @@ export default function DMRVStudio() {
       areaChange: analysis.areaChange,
       confidence: analysis.confidence
     });
-    
+
     // Simple hash simulation
     let hash = 0;
     for (let i = 0; i < dataString.length; i++) {
@@ -263,15 +296,63 @@ export default function DMRVStudio() {
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash;
     }
-    
+
     return `0x${Math.abs(hash).toString(16).padStart(64, '0').slice(0, 64)}`;
   };
 
   const filteredProjects = projects.filter(project => {
     if (!searchQuery) return true;
     return project.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           project.ecosystem_type?.toLowerCase().includes(searchQuery.toLowerCase());
+      project.ecosystem_type?.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  // Utility: Extract coordinates from project location (handles all formats)
+  const getProjectCoordinates = (project) => {
+    const loc = project?.location;
+    if (!loc) return null;
+
+    // Direct lat/lng on location
+    if (loc.lat && loc.lng) return { lat: parseFloat(loc.lat), lng: parseFloat(loc.lng) };
+    // Nested coordinates object
+    if (loc.coordinates?.lat && loc.coordinates?.lng) return { lat: parseFloat(loc.coordinates.lat), lng: parseFloat(loc.coordinates.lng) };
+    // latitude/longitude format
+    if (loc.latitude && loc.longitude) return { lat: parseFloat(loc.latitude), lng: parseFloat(loc.longitude) };
+
+    // Compute centroid from polygon_vertices or polygon
+    const poly = loc.polygon_vertices || loc.polygon;
+    if (poly && poly.length > 0) {
+      const lats = poly.map(p => p.lat || p.latitude || p[0]).filter(Boolean);
+      const lngs = poly.map(p => p.lng || p.longitude || p[1]).filter(Boolean);
+      if (lats.length > 0 && lngs.length > 0) {
+        return {
+          lat: lats.reduce((a, b) => a + b, 0) / lats.length,
+          lng: lngs.reduce((a, b) => a + b, 0) / lngs.length
+        };
+      }
+    }
+    return null;
+  };
+
+  // Utility: Extract polygon from project location (handles all formats)
+  const getProjectPolygon = (project) => {
+    const loc = project?.location;
+    if (!loc) return null;
+
+    const poly = loc.polygon_vertices || loc.polygon;
+    if (!poly || poly.length === 0) return null;
+
+    return poly.map(point => {
+      // Handle [lat, lng] array format from PolygonMapEditor
+      if (Array.isArray(point)) return { lat: point[0], lng: point[1] };
+      // Handle {lat, lng} object format
+      if (point.lat && point.lng) return { lat: point.lat, lng: point.lng };
+      if (point.latitude && point.longitude) return { lat: point.latitude, lng: point.longitude };
+      return null;
+    }).filter(Boolean);
+  };
+
+  const projectCoords = getProjectCoordinates(selectedProject);
+  const projectPolygon = getProjectPolygon(selectedProject);
 
   const kpiData = {
     extentDelta: { value: analysis.areaChange || 0, unit: "ha", label: "Extent Δ", trend: "up" },
@@ -350,7 +431,7 @@ export default function DMRVStudio() {
                 <FileText className="w-12 h-12 text-[#65728A] mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-[#0A0F1C] mb-2">No projects found</h3>
                 <p className="text-[#65728A]">
-                  {projects.length === 0 
+                  {projects.length === 0
                     ? "No projects in database. Create a project in Field Capture."
                     : `${projects.length} projects loaded but filtered out. Try "All Status" filter.`}
                 </p>
@@ -478,8 +559,8 @@ export default function DMRVStudio() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="border-[#E5EAF0] hover:border-[#D9E2EC]"
               onClick={() => runAnalysis(selectedProject)}
               disabled={analyzing}
@@ -487,7 +568,7 @@ export default function DMRVStudio() {
               <RefreshCw className={`w-4 h-4 mr-2 ${analyzing ? 'animate-spin' : ''}`} />
               Re-analyze
             </Button>
-            <Button 
+            <Button
               className="bg-[#0A6BFF] hover:bg-[#0A6BFF]/90 text-white"
               onClick={() => setShowPreview(true)}
             >
@@ -508,7 +589,7 @@ export default function DMRVStudio() {
               Satellite Layers
             </h2>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Temporal Layers */}
             <div>
@@ -616,7 +697,7 @@ export default function DMRVStudio() {
                   </div>
                   <Chip size="sm">SAR</Chip>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F7F8FA] transition-colors">
                   <div className="flex items-center gap-3">
                     <Satellite className="w-4 h-4 text-[#475569]" />
@@ -624,7 +705,7 @@ export default function DMRVStudio() {
                   </div>
                   <Chip size="sm">Optical</Chip>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F7F8FA] transition-colors">
                   <div className="flex items-center gap-3">
                     <Switch
@@ -658,7 +739,7 @@ export default function DMRVStudio() {
                     <span className="text-sm font-medium text-[#0A0F1C]">Water Mask</span>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F7F8FA] transition-colors">
                   <div className="flex items-center gap-3">
                     <Switch
@@ -675,11 +756,39 @@ export default function DMRVStudio() {
         </div>
 
         {/* Center Panel - Map */}
-        <div className="flex-1 p-6">
-          <div className="h-full bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden">
-            <SatelliteComparisonMap 
-              coordinates={selectedProject?.location?.coordinates}
-              polygon={selectedProject?.location?.polygon}
+        <div className="flex-1 p-6 flex flex-col gap-3">
+          {/* Location info bar */}
+          {projectCoords && (
+            <div className="bg-white border border-[#E5EAF0] rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <MapPin className="w-4 h-4 text-[#0A6BFF]" />
+                <span className="text-sm font-medium text-[#0A0F1C]">
+                  {projectCoords.lat.toFixed(4)}°N, {projectCoords.lng.toFixed(4)}°E
+                </span>
+                <span className="text-xs text-[#65728A]">•</span>
+                <span className="text-sm text-[#65728A]">
+                  {selectedProject?.ecosystem_type || 'Blue Carbon'} • {selectedProject?.area_hectares || 0} ha
+                </span>
+              </div>
+              {projectPolygon && projectPolygon.length > 0 && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                  {projectPolygon.length} vertices
+                </span>
+              )}
+            </div>
+          )}
+          {!projectCoords && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <MapPin className="w-4 h-4 text-amber-600" />
+              <span className="text-sm text-amber-700">
+                No GPS coordinates set for this project. The map shows the default location.
+              </span>
+            </div>
+          )}
+          <div className="flex-1 bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden">
+            <SatelliteComparisonMap
+              coordinates={projectCoords}
+              polygon={projectPolygon}
               projectId={selectedProject?.id || selectedProject?._id}
               activeLayers={layers}
               className="h-full"
@@ -695,7 +804,7 @@ export default function DMRVStudio() {
               Analysis Results
             </h2>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Analysis Status */}
             {analyzing && (
@@ -735,13 +844,20 @@ export default function DMRVStudio() {
                   <TrendingUp className="w-4 h-4 text-[#10B981]" />
                 </div>
                 <div className="h-16 flex items-end justify-between gap-1">
-                  {[0.6, 0.7, 0.65, 0.75, 0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.98, 1.0].map((height, i) => (
-                    <div
-                      key={i}
-                      className="bg-[#10B981] rounded-sm flex-1"
-                      style={{ height: `${height * 100}%` }}
-                    ></div>
-                  ))}
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const projectId = selectedProject?.id || selectedProject?._id || 'default';
+                    const seed = deterministicSeed(projectId);
+                    const base = 0.5 + seededRandom(seed, 10 + i) * 0.15;
+                    const growth = (i / 11) * 0.35; // Upward trend
+                    const height = Math.min(base + growth, 1.0);
+                    return (
+                      <div
+                        key={i}
+                        className="bg-[#10B981] rounded-sm flex-1"
+                        style={{ height: `${height * 100}%` }}
+                      ></div>
+                    );
+                  })}
                 </div>
                 <div className="flex justify-between text-xs text-[#65728A] mt-2">
                   <span>Jan '23</span>
@@ -786,23 +902,23 @@ export default function DMRVStudio() {
 
             {/* Actions */}
             <div className="pt-4 border-t border-[#E5EAF0] space-y-3">
-              <Button 
+              <Button
                 className="w-full bg-[#10B981] hover:bg-[#10B981]/90 text-white"
                 onClick={() => handleValidation(true)}
               >
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Approve Project
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full border-[#E5EAF0] hover:border-[#D9E2EC] text-[#DC2626] hover:bg-[#FEF2F2]"
                 onClick={() => handleValidation(false)}
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 Reject Project
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full border-[#E5EAF0] hover:border-[#D9E2EC]"
                 onClick={() => setShowPreview(true)}
               >
@@ -832,7 +948,7 @@ export default function DMRVStudio() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="p-6 overflow-y-auto max-h-[70vh]">
               <div className="space-y-6">
                 {/* Report Header */}
@@ -895,7 +1011,7 @@ export default function DMRVStudio() {
                       <li>• Cloud masking applied</li>
                     </ul>
                   </div>
-                  
+
                   <div className="bg-[#F7F8FA] rounded-xl p-4">
                     <h3 className="font-semibold text-[#0A0F1C] mb-3">Methods</h3>
                     <ul className="text-sm text-[#475569] space-y-1">
@@ -905,7 +1021,7 @@ export default function DMRVStudio() {
                       <li>• Statistical validation</li>
                     </ul>
                   </div>
-                  
+
                   <div className="bg-[#F7F8FA] rounded-xl p-4">
                     <h3 className="font-semibold text-[#0A0F1C] mb-3">QA/QC</h3>
                     <ul className="text-sm text-[#475569] space-y-1">
@@ -915,7 +1031,7 @@ export default function DMRVStudio() {
                       <li>• Cross-validation performed</li>
                     </ul>
                   </div>
-                  
+
                   <div className="bg-[#F7F8FA] rounded-xl p-4">
                     <h3 className="font-semibold text-[#0A0F1C] mb-3">Uncertainty</h3>
                     <ul className="text-sm text-[#475569] space-y-1">
@@ -950,15 +1066,19 @@ export default function DMRVStudio() {
                 )}
               </div>
             </div>
-            
+
             <div className="p-6 border-t border-[#E5EAF0] flex justify-between">
               <Button variant="outline" className="border-[#E5EAF0] hover:border-[#D9E2EC]">
                 <Download className="w-4 h-4 mr-2" />
                 Download PDF
               </Button>
               <div className="flex gap-3">
-                <Button 
+                <Button
                   className="bg-[#10B981] hover:bg-[#10B981]/90 text-white"
+                  onClick={async () => {
+                    setShowPreview(false);
+                    await handleValidation(true);
+                  }}
                 >
                   <Hash className="w-4 h-4 mr-2" />
                   Publish & Hash
