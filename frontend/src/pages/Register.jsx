@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Alert, AlertDescription } from '../components/ui/alert';
-import { Leaf, AlertCircle } from 'lucide-react';
+import { Leaf, AlertCircle, ArrowLeft } from 'lucide-react';
 import BrandLogoBig from '../components/BrandLogoBig';
 
 export default function Register() {
@@ -40,7 +40,7 @@ export default function Register() {
     try {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       setError(error.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -64,7 +64,16 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md relative">
+        <div className="absolute top-4 left-4">
+          <Link 
+            to="/" 
+            className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Link>
+        </div>
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
             <BrandLogoBig />

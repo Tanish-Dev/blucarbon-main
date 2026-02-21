@@ -76,7 +76,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Dashboard Tour */}
-      <DashboardTour run={runTour} onComplete={handleTourComplete} />
+      {/* <DashboardTour run={runTour} onComplete={handleTourComplete} /> */}
 
       {/* Hero Section with Gradient Background */}
       <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-sky-50 border border-slate-200 rounded-3xl p-8 md:p-12 shadow-sm">
@@ -262,13 +262,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
-        {/* Enhanced Map Component */}
-        <div className="lg:col-span-1" data-tour="project-map">
-          <ProjectMap />
-        </div>
-
-        {/* Enhanced Recent Projects */}
+      <div className="grid grid-cols-1 gap-6 md:gap-8">
+        {/* Enhanced Recent Projects - Spanning full width while Map is disabled */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition-colors shadow-sm" data-tour="recent-projects">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl md:text-2xl font-semibold text-slate-900">

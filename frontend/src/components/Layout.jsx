@@ -66,7 +66,7 @@ export default function Layout() {
             >
               <Menu className="w-5 h-5 text-slate-600" />
             </button>
-            <Link to="/">
+            <Link to="/dashboard">
               <BrandLogo />
             </Link>
           </div>

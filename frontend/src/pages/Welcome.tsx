@@ -20,6 +20,7 @@ import { AboutSection } from "@/components/AboutSection";
 import { FeaturesSection } from "@/components/FeaturesSection";
 import { VerifierPortalSection } from "@/components/VerifierPortalSection";
 import { TechSection } from "@/components/TechSection";
+import BrandLogo from "@/components/BrandLogo";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -197,7 +198,7 @@ export default function Welcome() {
       {/* Navbar */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl flex items-center justify-between px-4 md:px-6 py-3 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-full">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight text-slate-900">🌿 BluCarbon</span>
+          <BrandLogo />
         </div>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
           <a href="#about" className="hover:text-slate-900 transition-colors">About</a>
@@ -250,7 +251,7 @@ export default function Welcome() {
             </div>
 
             {/* Center Column: Phone */}
-            <div className="hero-phone md:col-span-6 flex flex-col items-center order-1 md:order-2 opacity-0 relative z-20 mt-16 md:mt-60">
+            <div className="hero-phone md:col-span-6 flex flex-col items-center order-1 md:order-2 opacity-0 relative z-20 mt-24 md:mt-80">
               <img
                 src="/phone.png"
                 alt="BluCarbon App Interface"
@@ -348,7 +349,7 @@ export default function Welcome() {
           <div className="flex flex-col md:flex-row justify-between items-start gap-16 mb-[30rem]">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-3">
-                <span className="text-3xl font-bold tracking-tight text-white">🌿 BluCarbon</span>
+                <BrandLogo className="text-3xl text-white" />
                 <div className="h-5 w-px bg-white/20"></div>
                 <span className="text-sm text-slate-400 font-medium">Blue Carbon MRV</span>
               </div>

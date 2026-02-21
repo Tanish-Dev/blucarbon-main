@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Get backend URL from environment variable
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'https://carbon-trust-ai.preview.emergentagent.com';
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 // Create axios instance
 const api = axios.create({

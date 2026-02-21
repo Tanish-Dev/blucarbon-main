@@ -108,7 +108,7 @@ export const mockValidators = [
 ];
 
 export const navItems = [
-  { id: "dashboard", label: "Dashboard", path: "/" },
+  { id: "dashboard", label: "Dashboard", path: "/dashboard" },
   { id: "projects", label: "Projects", path: "/projects" },
   { id: "field-capture", label: "Field Capture", path: "/create-project" },
   { id: "dmrv-studio", label: "dMRV Studio", path: "/dmrv-studio" },
