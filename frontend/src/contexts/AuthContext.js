@@ -44,6 +44,8 @@ export const AuthProvider = ({ children }) => {
       const tourCompleted = localStorage.getItem(`tour_completed_${response.user.id || response.user.username}`);
       setHasCompletedTour(tourCompleted === 'true');
       
+      window.location.href = '/dashboard';
+      await new Promise(resolve => setTimeout(resolve, 10000));
       return response;
     } catch (error) {
       throw error;
@@ -59,6 +61,8 @@ export const AuthProvider = ({ children }) => {
       // New users haven't completed the tour
       setHasCompletedTour(false);
       
+      window.location.href = '/dashboard';
+      await new Promise(resolve => setTimeout(resolve, 10000));
       return response;
     } catch (error) {
       throw error;
