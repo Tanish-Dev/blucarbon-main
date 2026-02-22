@@ -91,19 +91,19 @@ export const mockCredits = [
 export const mockValidators = [
   {
     id: "validator-1",
-    name: "Dr. Sarah Chen",
-    email: "s.chen@carbonvalidation.org",
+    name: "Dr. Arvind Patel",
+    email: "a.patel@carbonvalidation.org",
     skills: ["mangrove", "SAR", "UAV"],
     availability: "Available",
-    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=150&auto=format&fit=crop&ixlib=rb-4.0.3"
+    avatar: "https://ui-avatars.com/api/?name=Arvind+Patel&background=0D8ABC&color=fff&size=150"
   },
   {
     id: "validator-2", 
-    name: "Prof. Michael Rodriguez",
-    email: "m.rodriguez@bluecarbon.net",
+    name: "Prof. Meera Krishnamurthy",
+    email: "m.krishnamurthy@bluecarbon.net",
     skills: ["seagrass", "methodology", "QA/QC"],
     availability: "Busy",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&auto=format&fit=crop&ixlib=rb-4.0.3"
+    avatar: "https://ui-avatars.com/api/?name=Meera+K&background=2E7D32&color=fff&size=150"
   }
 ];
 
