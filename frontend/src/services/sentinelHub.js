@@ -15,7 +15,7 @@ class SentinelHubService {
    */
   async getProjectImagery(projectId) {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await axios.get(
         `${API_URL}/api/satellite/imagery/${projectId}`,
         {
@@ -42,7 +42,7 @@ class SentinelHubService {
    */
   async getCustomImagery(polygon, date, type = 'rgb', cloudCoverage = 20) {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       const response = await axios.post(
         `${API_URL}/api/satellite/custom-imagery`,
         {

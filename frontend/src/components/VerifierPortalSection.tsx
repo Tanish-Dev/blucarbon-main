@@ -63,7 +63,7 @@ export function VerifierPortalSection() {
             <div
                 ref={containerRef}
                 id="projects"
-                className="w-full mx-auto py-20 md:py-28 px-6 md:px-16 bg-[#0a0a0a] text-white relative overflow-hidden rounded-3xl"
+                className="w-full mx-auto py-16 md:py-28 px-6 md:px-16 bg-[#0a0a0a] text-white relative overflow-hidden rounded-3xl"
                 style={{ maxWidth: "1440px" }}
             >
                 {/* Subtle grid pattern background */}

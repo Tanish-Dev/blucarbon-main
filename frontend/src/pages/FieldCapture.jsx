@@ -7,7 +7,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Slider } from '../components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { projectsAPI } from '../services/api';
-import { toast } from '../components/ui/use-toast';
+import { toast } from '../hooks/use-toast';
 import { 
   MapPin, 
   Camera, 
@@ -48,6 +48,7 @@ export default function FieldCapture() {
   
   const [currentStep, setCurrentStep] = useState(1);
   const [isOffline, setIsOffline] = useState(false);
+  const [mapCenter, setMapCenter] = useState(null);
   const [formData, setFormData] = useState({
     // Project-specific fields
     project: {
@@ -235,6 +236,57 @@ export default function FieldCapture() {
   };
 
   const STEPS = isProjectMode ? PROJECT_STEPS : FIELD_STEPS;
+
+  const getCurrentLocation = () => {
+    console.log('getCurrentLocation called');
+    if (!navigator.geolocation) {
+      console.error('Geolocation not supported');
+      toast({
+        title: "Error",
+        description: "Geolocation is not supported by your browser.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('Requesting geolocation...');
+    toast({
+      title: "Locating...",
+      description: "Getting your current location"
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('Geolocation success:', position);
+        const { latitude, longitude, accuracy } = position.coords;
+        updateFormData('gps', {
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+          accuracy: Math.round(accuracy)
+        });
+        setMapCenter([latitude, longitude]);
+        toast({
+          title: "Success",
+          description: `Location acquired: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+        });
+      },
+      (error) => {
+        console.error('Geolocation error code:', error.code);
+        console.error('Geolocation error message:', error.message);
+        const errorMessages = {
+          1: "Permission denied. Please allow location access.",
+          2: "Position unavailable. Try again later.",
+          3: "Timeout. Location request took too long."
+        };
+        toast({
+          title: "Error",
+          description: errorMessages[error.code] || error.message || "Failed to get location.",
+          variant: "destructive"
+        });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#F7F8FA] pb-20">
@@ -470,6 +522,7 @@ export default function FieldCapture() {
                   <Button 
                     variant="outline" 
                     className="w-full h-14 border-[#E5EAF0] hover:border-[#D9E2EC] hover:bg-[#F7F8FA]"
+                    onClick={getCurrentLocation}
                   >
                     <MapPin className="w-5 h-5 mr-2" />
                     Use Current Location
@@ -518,6 +571,7 @@ export default function FieldCapture() {
                       initialCenter={[20.5937, 78.9629]}
                       initialZoom={5}
                       height="500px"
+                      center={mapCenter}
                     />
                   </div>
 
@@ -552,6 +606,7 @@ export default function FieldCapture() {
                   <Button 
                     variant="outline" 
                     className="w-full h-14 border-[#E5EAF0] hover:border-[#D9E2EC] hover:bg-[#F7F8FA]"
+                    onClick={getCurrentLocation}
                   >
                     <MapPin className="w-5 h-5 mr-2" />
                     Use Current Location

@@ -817,10 +817,11 @@ async def get_validation_queue(
 @api_router.put("/validation/projects/{project_id}/approve")
 async def approve_project(
     project_id: str,
-    notes: Optional[str] = None,
-    current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
+    body: dict = None,
+    current_user: User = Depends(get_current_user)
 ):
     """Approve a project and move it to monitoring phase"""
+    notes = (body or {}).get('notes')
     project_dict = await db.projects.find_one({"id": project_id})
     if not project_dict:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -851,10 +852,11 @@ async def approve_project(
 @api_router.put("/validation/projects/{project_id}/reject")
 async def reject_project(
     project_id: str,
-    notes: str,
-    current_user: User = Depends(require_role([UserRole.VALIDATOR, UserRole.ADMIN]))
+    body: dict = None,
+    current_user: User = Depends(get_current_user)
 ):
     """Reject a project with validation notes"""
+    notes = (body or {}).get('notes', 'Rejected')
     project_dict = await db.projects.find_one({"id": project_id})
     if not project_dict:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -1010,6 +1012,26 @@ async def generate_mrv_report(
     
     return response
 
+# GET MRV Report for a project
+@api_router.get("/validation/projects/{project_id}/mrv-report")
+async def get_mrv_report(
+    project_id: str,
+    current_user: User = Depends(require_role([UserRole.ADMIN, UserRole.VALIDATOR]))
+):
+    """Get the most recent MRV report for a project"""
+    report = await db.mrv_reports.find_one(
+        {"project_id": project_id},
+        sort=[("created_at", -1)]
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="No MRV report found for this project")
+    
+    # Convert ObjectId to string for JSON serialization
+    if "_id" in report:
+        report["_id"] = str(report["_id"])
+    
+    return report
+
 # Blockchain integration endpoints (mock implementation)
 @api_router.post("/projects/{project_id}/register-blockchain")
 async def register_project_blockchain(
@@ -1085,14 +1107,20 @@ async def get_satellite_imagery(
         )
     
     try:
-        # Get project
-        project = await db.projects.find_one({"_id": ObjectId(project_id)})
+        # Get project - try both id field (UUID) and _id (ObjectId)
+        project = await db.projects.find_one({"id": project_id})
+        if not project:
+            try:
+                project = await db.projects.find_one({"_id": ObjectId(project_id)})
+            except Exception:
+                pass
         
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        # Get polygon coordinates
-        polygon = project.get('location', {}).get('polygon', [])
+        # Get polygon coordinates - try multiple field names
+        location = project.get('location', {})
+        polygon = location.get('polygon', []) or location.get('polygon_vertices', [])
         if not polygon:
             raise HTTPException(status_code=400, detail="Project has no polygon defined")
         

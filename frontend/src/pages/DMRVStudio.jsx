@@ -4,7 +4,7 @@ import { Switch } from '../components/ui/switch';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { projectsAPI, validationAPI } from '../services/api';
-import { toast } from '../components/ui/use-toast';
+import { toast } from '../hooks/use-toast';
 import { 
   Layers, 
   Map, 
@@ -48,8 +48,8 @@ export default function DMRVStudio() {
   const [statusFilter, setStatusFilter] = useState(''); // Show all projects by default
   
   const [layers, setLayers] = useState({
-    baseline: { visible: true, source: 'Sentinel-2', date: '2023-01-15' },
-    monitoring: { visible: true, source: 'Sentinel-2', date: '2024-01-15' },
+    baseline: { visible: true, source: 'Sentinel-2', date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
+    monitoring: { visible: true, source: 'Sentinel-2', date: new Date().toISOString().split('T')[0] },
     delta: { visible: true, calculated: true },
     ndvi: { visible: false, name: 'NDVI' },
     rgb: { visible: false, name: 'True Color RGB' },
@@ -95,16 +95,50 @@ export default function DMRVStudio() {
     }
   };
 
+  // Normalize project location data for consistent downstream usage
+  const normalizeProjectLocation = (project) => {
+    if (!project?.location) return project;
+    const loc = project.location;
+    const normalized = { ...project, location: { ...loc } };
+
+    // Normalize coordinates: { lat, lng } from top-level lat/lng fields
+    if (!loc.coordinates && (loc.lat !== undefined || loc.lng !== undefined)) {
+      normalized.location.coordinates = { lat: parseFloat(loc.lat) || 0, lng: parseFloat(loc.lng) || 0 };
+    }
+
+    // Normalize polygon: polygon_vertices [[lat,lng], ...] → polygon [{lat, lng}, ...]
+    if (!loc.polygon && loc.polygon_vertices && Array.isArray(loc.polygon_vertices)) {
+      normalized.location.polygon = loc.polygon_vertices.map(v => {
+        if (Array.isArray(v)) return { lat: v[0], lng: v[1] };
+        return v; // already {lat, lng}
+      });
+    }
+
+    return normalized;
+  };
+
   const selectProject = (project) => {
     console.log('📋 Selected project:', project);
     console.log('🆔 Project ID:', project._id || project.id || 'NO ID FOUND');
     console.log('📍 Project location:', project.location);
-    console.log('🔷 Polygon:', project.location?.polygon);
-    setSelectedProject(project);
+    const normalizedProject = normalizeProjectLocation(project);
+    console.log('🔷 Normalized polygon:', normalizedProject.location?.polygon);
+    console.log('📌 Normalized coordinates:', normalizedProject.location?.coordinates);
+    setSelectedProject(normalizedProject);
     setView('validation');
     setValidationNotes('');
+
+    // Update layer dates from project data
+    const baselineDate = project.baseline_date || project.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+    const monitoringDate = project.monitoring_date || new Date().toISOString().split('T')[0];
+    setLayers(prev => ({
+      ...prev,
+      baseline: { ...prev.baseline, date: baselineDate },
+      monitoring: { ...prev.monitoring, date: monitoringDate },
+    }));
+
     // Run initial analysis
-    runAnalysis(project);
+    runAnalysis(normalizedProject);
   };
 
   const runAnalysis = async (project) => {
@@ -526,7 +560,7 @@ export default function DMRVStudio() {
                     <div>
                       <p className="font-medium text-[#0A0F1C]">Baseline</p>
                       <p className="text-xs text-[#65728A]">
-                        {layers.baseline.source} • {layers.baseline.date}
+                        {layers.baseline.date}
                       </p>
                     </div>
                   </div>
@@ -543,7 +577,7 @@ export default function DMRVStudio() {
                     <div>
                       <p className="font-medium text-[#0A0F1C]">Monitoring</p>
                       <p className="text-xs text-[#65728A]">
-                        {layers.monitoring.source} • {layers.monitoring.date}
+                        {layers.monitoring.date}
                       </p>
                     </div>
                   </div>
@@ -616,7 +650,7 @@ export default function DMRVStudio() {
                   </div>
                   <Chip size="sm">SAR</Chip>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F7F8FA] transition-colors">
                   <div className="flex items-center gap-3">
                     <Satellite className="w-4 h-4 text-[#475569]" />
@@ -675,14 +709,32 @@ export default function DMRVStudio() {
         </div>
 
         {/* Center Panel - Map */}
-        <div className="flex-1 p-6">
-          <div className="h-full bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden">
+        <div className="flex-1 p-6 flex flex-col">
+          {/* Coordinate Info Bar */}
+          {selectedProject?.location && (
+            <div className="bg-white border border-[#E5EAF0] rounded-xl px-4 py-2.5 mb-3 flex items-center gap-3 text-sm">
+              <MapPin className="w-4 h-4 text-[#0A6BFF]" />
+              <span className="text-[#0A0F1C] font-medium">
+                {(selectedProject.location.coordinates?.lat || selectedProject.location.lat || 0).toFixed(4)}°N,{' '}
+                {(selectedProject.location.coordinates?.lng || selectedProject.location.lng || 0).toFixed(4)}°E
+              </span>
+              <span className="text-[#E5EAF0]">•</span>
+              <span className="text-[#475569]">{selectedProject.ecosystem_type || 'Unknown'}</span>
+              <span className="text-[#E5EAF0]">•</span>
+              <span className="text-[#475569]">{selectedProject.area_hectares || 0} ha</span>
+              <span className="text-[#E5EAF0]">•</span>
+              <span className="text-[#475569]">
+                {selectedProject.location.polygon?.length || selectedProject.location.polygon_vertices?.length || 0} vertices
+              </span>
+            </div>
+          )}
+          <div className="flex-1 bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden">
             <SatelliteComparisonMap 
-              coordinates={selectedProject?.location?.coordinates}
-              polygon={selectedProject?.location?.polygon}
+              coordinates={selectedProject?.location?.coordinates || (selectedProject?.location?.lat ? { lat: parseFloat(selectedProject.location.lat), lng: parseFloat(selectedProject.location.lng) } : undefined)}
+              polygon={selectedProject?.location?.polygon || selectedProject?.location?.polygon_vertices}
               projectId={selectedProject?.id || selectedProject?._id}
               activeLayers={layers}
-              className="h-full"
+              className="h-full w-full"
             />
           </div>
         </div>
@@ -889,8 +941,8 @@ export default function DMRVStudio() {
                   <div className="bg-[#F7F8FA] rounded-xl p-4">
                     <h3 className="font-semibold text-[#0A0F1C] mb-3">Data Sources</h3>
                     <ul className="text-sm text-[#475569] space-y-1">
-                      <li>• Sentinel-2 Optical (2023-2024)</li>
-                      <li>• Sentinel-1 SAR (2023-2024)</li>
+                      <li>• Sentinel-2 Optical ({layers.baseline.date?.slice(0,4)}–{layers.monitoring.date?.slice(0,4)})</li>
+                      <li>• Sentinel-1 SAR ({layers.baseline.date?.slice(0,4)}–{layers.monitoring.date?.slice(0,4)})</li>
                       <li>• NDVI time series analysis</li>
                       <li>• Cloud masking applied</li>
                     </ul>

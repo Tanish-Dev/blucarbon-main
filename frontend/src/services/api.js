@@ -259,6 +259,11 @@ export const validationAPI = {
   generateMRVReport: async (projectId, analysisData) => {
     const response = await api.post(`/validation/projects/${projectId}/mrv-report`, analysisData);
     return response.data;
+  },
+
+  getMRVReport: async (projectId) => {
+    const response = await api.get(`/validation/projects/${projectId}/mrv-report`);
+    return response.data;
   }
 };
 

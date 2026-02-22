@@ -6,7 +6,7 @@ import MetricTile from '../components/MetricTile';
 import Chip from '../components/Chip';
 import { Plus, Filter, Grid3X3, List, ExternalLink, Loader2 } from 'lucide-react';
 import { projectsAPI } from '../services/api';
-import { toast } from '../components/ui/use-toast';
+import { toast } from '../hooks/use-toast';
 
 export default function Projects() {
   const { user } = useAuth();

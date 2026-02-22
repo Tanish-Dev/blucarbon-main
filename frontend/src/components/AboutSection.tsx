@@ -52,23 +52,23 @@ export function AboutSection() {
         <section
             ref={containerRef}
             id="about"
-            className="w-full pt-20 pb-20 px-6 md:px-12 bg-[#fbfbfd] border-t border-slate-200/50"
+            className="w-full py-16 md:py-24 px-6 md:px-12 bg-[#fbfbfd] border-t border-slate-200/50"
         >
             <div className="max-w-7xl mx-auto">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-8 md:gap-16 mb-16">
-                    <div className="md:w-1/2">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-8 md:gap-16 mb-12 md:mb-20">
+                    <div className="w-full md:w-1/2">
                         <div className="about-header-element inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-200 bg-white shadow-sm mb-6">
                             <Satellite className="w-4 h-4 text-green-600" />
                             <span className="text-xs font-medium text-slate-600 uppercase tracking-tight">Why BluCarbon?</span>
                         </div>
-                        <h2 className="about-header-element text-3xl md:text-5xl font-medium text-slate-900 tracking-tight leading-tight">
-                            Verified blue carbon. <br />
+                        <h2 className="about-header-element text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight leading-tight">
+                            Verified blue carbon. <br className="hidden sm:block" />
                             <span className="text-slate-500">Trusted by science. Backed by blockchain.</span>
                         </h2>
                     </div>
-                    <div className="md:w-1/2 md:pt-16">
-                        <p className="about-header-element text-[17px] font-normal text-slate-500 leading-normal tracking-tight">
+                    <div className="w-full md:w-1/2 md:pt-16">
+                        <p className="about-header-element text-base sm:text-lg md:text-[17px] font-normal text-slate-500 leading-relaxed tracking-tight">
                             BluCarbon is built to address gaps in blue carbon credit integrity by combining satellite remote sensing,
                             digital MRV workflows, and on-chain credit issuance into a single transparent platform.
                             The system prioritizes accuracy, traceability, and real-world feasibility for coastal ecosystem projects.

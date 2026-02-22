@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -18,44 +18,113 @@ import {
   AlertCircle,
   UserCheck,
   Settings,
-  Activity
+  Activity,
+  Loader2,
+  Hash,
+  MapPin,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { mockValidators } from '../mock';
 import Chip from '../components/Chip';
+import { projectsAPI, validationAPI } from '../services/api';
+import { toast } from '../hooks/use-toast';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('approvals');
   const [newInvite, setNewInvite] = useState({ email: '', role: '' });
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
+  const [expandedProject, setExpandedProject] = useState(null);
+  const [mrvReports, setMrvReports] = useState({});
+  const [mrvLoading, setMrvLoading] = useState({});
 
-  const mockApprovals = [
-    {
-      id: 1,
-      type: 'MRV Report',
-      requester: 'Dr. Sarah Chen',
-      projectId: 'GOD-001',
-      age: '2 hours ago',
-      status: 'pending',
-      quorum: '2/3'
-    },
-    {
-      id: 2,
-      type: 'Credit Issuance',
-      requester: 'CoastalCare NGO',
-      projectId: 'TN-002',
-      age: '1 day ago',
-      status: 'pending',
-      quorum: '1/3'
-    },
-    {
-      id: 3,
-      type: 'Project Registration',
-      requester: 'Marine Foundation',
-      projectId: 'KL-003',
-      age: '3 days ago',
-      status: 'approved',
-      quorum: '3/3'
+  // Load real projects from API
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      const data = await projectsAPI.getAll();
+      setProjects(data);
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      toast({ title: 'Error', description: 'Failed to load projects', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleApprove = async (projectId) => {
+    try {
+      setActionLoading(prev => ({ ...prev, [projectId]: 'approving' }));
+      await validationAPI.approveProject(projectId, 'Approved by admin');
+      toast({ title: 'Project Approved', description: 'Project status updated to monitoring.' });
+      await loadProjects();
+    } catch (error) {
+      console.error('Failed to approve project:', error);
+      const detail = error.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join(', ') : 'Failed to approve project';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    } finally {
+      setActionLoading(prev => ({ ...prev, [projectId]: null }));
+    }
+  };
+
+  const handleReject = async (projectId) => {
+    try {
+      setActionLoading(prev => ({ ...prev, [projectId]: 'rejecting' }));
+      await validationAPI.rejectProject(projectId, 'Rejected by admin');
+      toast({ title: 'Project Rejected', description: 'Project has been rejected.' });
+      await loadProjects();
+    } catch (error) {
+      console.error('Failed to reject project:', error);
+      const detail = error.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join(', ') : 'Failed to reject project';
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+    } finally {
+      setActionLoading(prev => ({ ...prev, [projectId]: null }));
+    }
+  };
+
+  const toggleExpandProject = async (projectId) => {
+    if (expandedProject === projectId) {
+      setExpandedProject(null);
+      return;
+    }
+    setExpandedProject(projectId);
+    // Fetch MRV report if not already loaded
+    if (!mrvReports[projectId]) {
+      try {
+        setMrvLoading(prev => ({ ...prev, [projectId]: true }));
+        const report = await validationAPI.getMRVReport(projectId);
+        setMrvReports(prev => ({ ...prev, [projectId]: report }));
+      } catch (error) {
+        // 404 means no report — that's fine
+        if (error.response?.status === 404) {
+          setMrvReports(prev => ({ ...prev, [projectId]: null }));
+        } else {
+          console.error('Failed to load MRV report:', error);
+        }
+      } finally {
+        setMrvLoading(prev => ({ ...prev, [projectId]: false }));
+      }
+    }
+  };
+
+  const getStatusChipStatus = (status) => {
+    const map = {
+      draft: 'Draft',
+      in_review: 'In Review',
+      monitoring: 'Monitoring',
+      issued: 'Issued',
+      rejected: 'Rejected'
+    };
+    return map[status] || status;
+  };
 
   const mockRoles = [
     { id: 1, name: 'Dr. Sarah Chen', email: 's.chen@carbonvalidation.org', role: 'Validator', joinedAt: '2023-08-15' },
@@ -127,63 +196,190 @@ export default function Admin() {
 
         {/* Approvals Tab */}
         <TabsContent value="approvals" className="space-y-6">
-          <div className="grid gap-6">
-            {mockApprovals.map((approval) => (
-              <div key={approval.id} className="bg-white border border-[#E5EAF0] rounded-2xl p-6 hover:border-[#D9E2EC] transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-lg font-semibold text-[#0A0F1C]">
-                        {approval.type}
-                      </h3>
-                      <Chip 
-                        status={approval.status === 'pending' ? 'In Review' : 'Monitoring'}
-                        size="sm"
-                      >
-                        {approval.status}
-                      </Chip>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm text-[#475569]">
-                      <p><span className="font-medium">Requester:</span> {approval.requester}</p>
-                      <p><span className="font-medium">Project:</span> {approval.projectId}</p>
-                      <p><span className="font-medium">Submitted:</span> {approval.age}</p>
-                      <p><span className="font-medium">Quorum:</span> {approval.quorum}</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-[#0A6BFF]" />
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="bg-white border border-[#E5EAF0] rounded-2xl p-12 text-center">
+              <FileText className="w-12 h-12 text-[#65728A] mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-[#0A0F1C] mb-2">No projects found</h3>
+              <p className="text-[#65728A]">No projects are available for review.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {projects.map((project) => {
+                const projectId = project.id || project._id;
+                const isExpanded = expandedProject === projectId;
+                const report = mrvReports[projectId];
+                const isReportLoading = mrvLoading[projectId];
+                const isPending = ['draft', 'in_review'].includes(project.status);
+
+                return (
+                  <div key={projectId} className="bg-white border border-[#E5EAF0] rounded-2xl overflow-hidden hover:border-[#D9E2EC] transition-colors">
+                    <div className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <h3 className="text-lg font-semibold text-[#0A0F1C]">
+                              {project.title || 'Untitled Project'}
+                            </h3>
+                            <Chip 
+                              status={getStatusChipStatus(project.status)}
+                              size="sm"
+                            >
+                              {project.status || 'draft'}
+                            </Chip>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm text-[#475569]">
+                            <p><span className="font-medium">Ecosystem:</span> {project.ecosystem_type || 'N/A'}</p>
+                            <p><span className="font-medium">Methodology:</span> {project.methodology || 'N/A'}</p>
+                            <p><span className="font-medium">Area:</span> {project.area_hectares || 0} hectares</p>
+                            <p><span className="font-medium">Created:</span> {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}</p>
+                            {project.description && (
+                              <p><span className="font-medium">Description:</span> {project.description}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-[#E5EAF0] hover:border-[#D9E2EC]"
+                              onClick={() => toggleExpandProject(projectId)}
+                            >
+                              {isExpanded ? <ChevronUp className="w-4 h-4 mr-2" /> : <ChevronDown className="w-4 h-4 mr-2" />}
+                              {isExpanded ? 'Hide Report' : 'View MRV Report'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {isPending && (
+                          <div className="flex gap-3 ml-6">
+                            <Button
+                              className="bg-[#10B981] hover:bg-[#10B981]/90 text-white px-4 py-2"
+                              onClick={() => handleApprove(projectId)}
+                              disabled={!!actionLoading[projectId]}
+                            >
+                              {actionLoading[projectId] === 'approving' ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                              )}
+                              Approve
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="border-[#EF4444] text-[#EF4444] hover:bg-[#FEF2F2] px-4 py-2"
+                              onClick={() => handleReject(projectId)}
+                              disabled={!!actionLoading[projectId]}
+                            >
+                              {actionLoading[projectId] === 'rejecting' ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <XCircle className="w-4 h-4 mr-2" />
+                              )}
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-[#E5EAF0] hover:border-[#D9E2EC]"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Diff
-                      </Button>
-                    </div>
+                    {/* MRV Report Section (expandable) */}
+                    {isExpanded && (
+                      <div className="border-t border-[#E5EAF0] bg-[#F7F8FA] p-6">
+                        <h4 className="font-semibold text-[#0A0F1C] mb-4 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-[#0A6BFF]" />
+                          dMRV Report
+                        </h4>
+                        {isReportLoading ? (
+                          <div className="flex items-center gap-2 text-[#65728A]">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading report...
+                          </div>
+                        ) : report ? (
+                          <div className="space-y-4">
+                            {/* Key Results */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0]">
+                                <p className="text-xs text-[#65728A] mb-1">CO₂ Absorbed</p>
+                                <p className="text-xl font-bold text-[#10B981]">
+                                  {report.analysis_data?.co2?.toFixed(1) || 0} <span className="text-sm font-normal">tCO2e</span>
+                                </p>
+                              </div>
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0]">
+                                <p className="text-xs text-[#65728A] mb-1">Confidence</p>
+                                <p className="text-xl font-bold text-[#F59E0B]">
+                                  {((report.analysis_data?.confidence || 0) * 100).toFixed(0)}%
+                                </p>
+                              </div>
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0]">
+                                <p className="text-xs text-[#65728A] mb-1">Carbon Stock</p>
+                                <p className="text-xl font-bold text-[#0A6BFF]">
+                                  {report.analysis_data?.carbonStock?.toFixed(1) || 0} <span className="text-sm font-normal">tC</span>
+                                </p>
+                              </div>
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0]">
+                                <p className="text-xs text-[#65728A] mb-1">Area Change</p>
+                                <p className="text-xl font-bold text-[#0A0F1C]">
+                                  +{report.analysis_data?.areaChange?.toFixed(1) || 0} <span className="text-sm font-normal">ha</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Report Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0] space-y-2 text-sm">
+                                <p><span className="font-medium text-[#0A0F1C]">Biomass Increase:</span> <span className="text-[#475569]">{report.analysis_data?.biomass?.toFixed(1) || 0}%</span></p>
+                                <p><span className="font-medium text-[#0A0F1C]">NDVI Change:</span> <span className="text-[#475569]">+{report.analysis_data?.ndvi?.toFixed(3) || 0}</span></p>
+                                <p><span className="font-medium text-[#0A0F1C]">Baseline Date:</span> <span className="text-[#475569]">{report.analysis_data?.baseline_date || 'N/A'}</span></p>
+                                <p><span className="font-medium text-[#0A0F1C]">Monitoring Date:</span> <span className="text-[#475569]">{report.analysis_data?.monitoring_date || 'N/A'}</span></p>
+                              </div>
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0] space-y-2 text-sm">
+                                <p><span className="font-medium text-[#0A0F1C]">Report Date:</span> <span className="text-[#475569]">{report.created_at ? new Date(report.created_at).toLocaleString() : 'N/A'}</span></p>
+                                <p><span className="font-medium text-[#0A0F1C]">Blockchain Status:</span>{' '}
+                                  <Chip size="sm" status={report.blockchain_status === 'confirmed' ? 'Monitoring' : 'In Review'}>
+                                    {report.blockchain_status || 'pending'}
+                                  </Chip>
+                                </p>
+                                {report.blockchain_tx_hash && (
+                                  <p><span className="font-medium text-[#0A0F1C]">TX Hash:</span> <code className="text-xs text-[#475569] break-all">{report.blockchain_tx_hash}</code></p>
+                                )}
+                                {report.validator_notes && (
+                                  <p><span className="font-medium text-[#0A0F1C]">Validator Notes:</span> <span className="text-[#475569]">{report.analysis_data?.validationNotes || report.validator_notes}</span></p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* MRV Hash */}
+                            {report.mrv_hash && (
+                              <div className="bg-white rounded-xl p-4 border border-[#E5EAF0] text-center">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                  <Hash className="w-4 h-4 text-[#65728A]" />
+                                  <span className="text-sm font-medium text-[#65728A]">MRV Hash</span>
+                                </div>
+                                <code className="text-xs text-[#0A0F1C] bg-[#F7F8FA] px-3 py-1 rounded font-mono break-all">
+                                  {report.mrv_hash}
+                                </code>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-xl p-8 border border-[#E5EAF0] text-center">
+                            <AlertCircle className="w-8 h-8 text-[#65728A] mx-auto mb-3" />
+                            <p className="text-[#0A0F1C] font-medium mb-1">No MRV report generated yet</p>
+                            <p className="text-sm text-[#65728A]">An MRV report will appear here once generated in the dMRV Studio.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  {approval.status === 'pending' && (
-                    <div className="flex gap-3 ml-6">
-                      <Button
-                        className="bg-[#10B981] hover:bg-[#10B981]/90 text-white px-4 py-2"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-[#EF4444] text-[#EF4444] hover:bg-[#FEF2F2] px-4 py-2"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Request Changes
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* Validators Tab */}

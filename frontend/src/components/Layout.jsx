@@ -33,7 +33,7 @@ const iconMap = {
 };
 
 export default function Layout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -47,9 +47,10 @@ export default function Layout() {
 
   // Filter navigation items based on user role
   const filteredNavItems = navItems.filter(item => {
-    if (item.id === 'admin' && user?.role !== 'admin') {
-      return false;
-    }
+    // Show admin to all users for demo purposes
+    // if (item.id === 'admin' && user?.role !== 'admin') {
+    //   return false;
+    // }
     return true;
   });
 

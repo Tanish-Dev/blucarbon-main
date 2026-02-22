@@ -127,10 +127,19 @@ export default function SatelliteComparisonMap({
 
     // Add polygon if provided
     if (polygon && polygon.length > 0) {
-      const polygonCoords = polygon.map(point => [
-        point.lat || point[1] || point.latitude,
-        point.lng || point[0] || point.longitude
-      ]).filter(coord => coord[0] && coord[1]);
+      const polygonCoords = polygon.map(point => {
+        if (point.lat !== undefined && point.lng !== undefined) {
+          return [point.lat, point.lng];
+        }
+        if (point.latitude !== undefined && point.longitude !== undefined) {
+          return [point.latitude, point.longitude];
+        }
+        // Array format: FieldCapture stores [lat, lng]
+        if (Array.isArray(point) && point.length >= 2) {
+          return [point[0], point[1]];
+        }
+        return null;
+      }).filter(coord => coord && coord[0] && coord[1]);
 
       if (polygonCoords.length > 0) {
         const polygonLayer = L.polygon(polygonCoords, {

@@ -15,6 +15,8 @@ import {
   FileCheck,
   Plus,
   Minus,
+  Menu,
+  X,
 } from "lucide-react";
 import { AboutSection } from "@/components/AboutSection";
 import { FeaturesSection } from "@/components/FeaturesSection";
@@ -96,6 +98,7 @@ export default function Welcome() {
   const heroRef = useRef<HTMLDivElement>(null);
   const complianceRef = useRef<HTMLDivElement>(null);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -196,10 +199,12 @@ export default function Welcome() {
   return (
     <div ref={containerRef} className="relative w-full overflow-x-hidden bg-[#fbfbfd]">
       {/* Navbar */}
-      <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl flex items-center justify-between px-4 md:px-6 py-3 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-full">
+      <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl flex items-center justify-between px-4 md:px-6 py-3 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-full transition-all duration-300">
         <div className="flex items-center gap-2">
           <BrandLogo />
         </div>
+        
+        {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
           <a href="#about" className="hover:text-slate-900 transition-colors">About</a>
           <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
@@ -207,11 +212,38 @@ export default function Welcome() {
           <a href="#technology" className="hover:text-slate-900 transition-colors">Technology</a>
           <a href="#compliance" className="hover:text-slate-900 transition-colors">Standards</a>
         </div>
-        <Link to="/login">
-          <Button className="h-10 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6 text-sm">
-            Login
-          </Button>
-        </Link>
+        
+        <div className="flex items-center gap-2">
+          <Link to="/login" className="hidden sm:block">
+            <Button className="h-10 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6 text-sm">
+              Login
+            </Button>
+          </Link>
+          
+          {/* Mobile Menu Toggle */}
+          <button 
+            className="md:hidden p-2 text-slate-600 hover:text-slate-900 transition-colors"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile Nav Overlay */}
+        {isMenuOpen && (
+          <div className="absolute top-full left-0 right-0 mt-4 mx-auto w-full bg-white border border-slate-200 rounded-3xl shadow-xl p-6 flex flex-col gap-4 md:hidden animate-in fade-in slide-in-from-top-4 duration-200">
+            <a href="#about" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 hover:bg-slate-50 rounded-xl transition-colors font-medium">About</a>
+            <a href="#features" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 hover:bg-slate-50 rounded-xl transition-colors font-medium">Features</a>
+            <a href="#projects" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 hover:bg-slate-50 rounded-xl transition-colors font-medium">Projects</a>
+            <a href="#technology" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 hover:bg-slate-50 rounded-xl transition-colors font-medium">Technology</a>
+            <a href="#compliance" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 hover:bg-slate-50 rounded-xl transition-colors font-medium">Standards</a>
+            <Link to="/login" onClick={() => setIsMenuOpen(false)} className="mt-2">
+              <Button className="w-full h-12 rounded-xl bg-slate-900 text-white font-semibold">
+                Login
+              </Button>
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -220,8 +252,8 @@ export default function Welcome() {
         className="relative w-full h-screen overflow-hidden bg-[#f0f4f0]"
       >
         {/* Giant Background Text */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-          <h1 className="hero-bg-text text-[21vw] font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-slate-600 to-slate-900 leading-none whitespace-nowrap">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden px-4">
+          <h1 className="hero-bg-text text-[14vw] md:text-[21vw] font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-slate-600 to-slate-900 leading-none whitespace-nowrap">
             BluCarbon
           </h1>
         </div>
@@ -230,20 +262,20 @@ export default function Welcome() {
         <div className="relative z-10 container mx-auto h-full px-6 md:px-12 pt-36 md:pt-60">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-12 items-center cursor-default">
 
-            {/* Left Column */}
-            <div className="hero-left hidden md:block md:col-span-3 md:self-center md:pl-16 md:order-1 opacity-0 mt-8 md:mt-12">
-              <p className="text-slate-500 text-sm leading-tight mb-6 max-w-xs font-normal">
-                Satellite-verified blue carbon credits. Transparent, traceable, blockchain-backed.
+            {/* Left Column (Tagline & Buttons) */}
+            <div className="hero-left md:col-span-3 md:self-center md:pl-16 md:order-1 opacity-0 mt-8 md:mt-12 flex flex-col items-center md:items-start text-center md:text-left order-2 md:order-1">
+              <p className="text-slate-500 text-sm md:text-base leading-tight mb-6 max-w-xs font-normal">
+                Satellite-verified blue carbon credits. <br className="hidden md:block" /> Transparent, traceable, blockchain-backed.
               </p>
-              <div className="flex flex-col gap-3">
-                <Link to="/login">
-                  <Button className="w-full md:w-auto h-12 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-900 font-semibold shadow-lg shadow-slate-900/10">
+              <div className="flex flex-col gap-3 w-full items-center md:items-start md:w-auto">
+                <Link to="/login" className="w-auto">
+                  <Button className="h-12 w-auto rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-900 font-semibold shadow-lg shadow-slate-900/10 px-8">
                     Get Started <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
                 <a
                   href="#compliance"
-                  className="text-xs text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-2 font-medium"
+                  className="text-xs text-slate-500 hover:text-slate-900 transition-colors flex items-center justify-center md:justify-start gap-2 font-medium"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" /> View our MRV Standards
                 </a>
@@ -251,34 +283,19 @@ export default function Welcome() {
             </div>
 
             {/* Center Column: Phone */}
-            <div className="hero-phone md:col-span-6 flex flex-col items-center order-1 md:order-2 opacity-0 relative z-20 mt-24 md:mt-80">
+            <div className="hero-phone md:col-span-6 flex flex-col items-center order-1 md:order-2 opacity-0 relative z-20 mt-16 md:mt-80">
               <img
                 src="/phone.png"
                 alt="BluCarbon App Interface"
-                className="w-[240px] md:w-[340px] drop-shadow-2xl"
+                className="w-48 sm:w-56 md:w-[340px] drop-shadow-2xl"
               />
 
-              {/* Mobile-only */}
-              <div className="hero-mobile-text md:hidden flex flex-col items-center text-center mt-6 gap-3 opacity-0">
-                <h2 className="text-xl font-medium leading-normal text-slate-900 tracking-tight">
-                  Satellite-Powered{" "}
-                  <span className="text-[#16a34a] font-bold">Verification.</span>
-                </h2>
-                <p className="text-slate-500 text-[13px] leading-normal max-w-[280px] font-normal">
-                  Satellite-verified blue carbon credits. Transparent, traceable, blockchain-backed.
-                </p>
-                <Link to="/login">
-                  <Button className="h-10 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold shadow-lg px-6">
-                    Get Started <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                  </Button>
-                </Link>
-              </div>
             </div>
 
-            {/* Right Column */}
-            <div className="hero-right hidden md:block md:col-span-3 md:self-center md:order-3 text-left opacity-0 translate-x-10 mt-8 md:mt-12">
-              <h2 className="text-3xl md:text-5xl lg:text-5xl font-medium leading-tight text-slate-900 tracking-tight">
-                Satellite-Powered <br />
+            {/* Right Column (Heading) */}
+            <div className="hero-right md:col-span-3 md:self-center md:order-3 text-center md:text-left opacity-0 md:translate-x-10 mt-8 md:mt-12 order-3">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl font-medium leading-tight text-slate-900 tracking-tight">
+                Satellite-Powered <br className="hidden md:block" />
                 <span className="text-[#16a34a] font-bold">Verification.</span>
               </h2>
             </div>
@@ -381,9 +398,8 @@ export default function Welcome() {
           </div>
         </div>
 
-        {/* Giant background text */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full pointer-events-none select-none flex justify-center items-center z-0 opacity-100">
-          <h1 className="text-[23vw] font-bold text-[#36393d] tracking-tighter leading-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full pointer-events-none select-none flex justify-center items-center z-0 opacity-100 px-4">
+          <h1 className="text-[16vw] md:text-[23vw] font-bold text-[#36393d] tracking-tighter leading-none whitespace-nowrap">
             BluCarbon
           </h1>
         </div>
