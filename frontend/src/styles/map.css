@@ -4,6 +4,30 @@
   z-index: 0;
 }
 
+/* Fix Tailwind CSS preflight breaking Leaflet tiles */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-tile-pane img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* Prevent Tailwind from interfering with Leaflet controls */
+.leaflet-control-container a {
+  text-decoration: none;
+}
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-container {
+  user-select: none;
+}
+
 /* Custom popup styles */
 .leaflet-popup-content-wrapper {
   border-radius: 8px;

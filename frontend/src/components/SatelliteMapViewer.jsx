@@ -82,6 +82,7 @@ export default function SatelliteMapViewer({
         center={mapCenter}
         zoom={mapZoom}
         className="h-full w-full"
+        style={{ minHeight: '300px' }}
         scrollWheelZoom={true}
       >
         <LayersControl position="topright">

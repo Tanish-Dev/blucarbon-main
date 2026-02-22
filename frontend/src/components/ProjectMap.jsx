@@ -88,7 +88,7 @@ export default function ProjectMap({ projects = [] }) {
     <MapContainer
       center={center}
       zoom={zoom}
-      style={{ height: '100%', width: '100%' }}
+      style={{ height: '100%', width: '100%', minHeight: '240px' }}
       scrollWheelZoom={false}
     >
       <TileLayer
